@@ -1,10 +1,7 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { DrawingScene } from './type/types.js';
 
-// Initialisation du client avec la clé d'API
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY
-});
+
 
 // Schéma strict imposé à Gemini
 const drawingSceneSchema = {
@@ -69,6 +66,12 @@ export async function generateDrawingScene(
   canvasWidth: number = 800,
   canvasHeight: number = 600
 ): Promise<DrawingScene> {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('La clé d\'API Gemini n\'est pas définie dans les variables d\'environnement.');
+    }
+    const ai = new GoogleGenAI({ apiKey });
+
   const systemInstruction = `
 Tu es un artiste et programmeur expert p5.js.
 Ton rôle est de traduire les demandes de l'utilisateur en une composition graphique harmonieuse.
@@ -80,10 +83,11 @@ Règles du canvas :
 - L'ordre des formes dans 'commands' compte : les premières formes sont dessinées en dessous, les dernières au-dessus.
 - Choisis des palettes de couleurs esthétiques et modernes.
 - Décompose les objets complexes en formes simples (ex: un sapin = triangles verts superposés + rectangle marron pour le tronc).
+- Pour chaque forme, tu DOIS impérativement fournir sa couleur ('fill' ou 'stroke'). Pour un 'circle', 'radius' est obligatoire. Pour un 'rect', 'width' et 'height' sont obligatoires. Compose des scènes détaillées et riches avec au minimum 5 à 15 formes.
 `;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'models/gemini-3.8-flash',
     contents: userPrompt,
     config: {
       systemInstruction,
