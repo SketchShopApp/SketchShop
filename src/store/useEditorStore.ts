@@ -40,6 +40,9 @@ interface EditorState {
   triggerFilter: (type: 'threshold' | 'pixelate' | 'ascii') => void;
 
   // AI Scene State
+  isAiChatOpen: boolean;
+  toggleAiChat: () => void;
+  setIsAiChatOpen: (isOpen: boolean) => void;
   pendingAiScene: { scene: DrawingScene; timestamp: number } | null;
   applyAiScene: (scene: DrawingScene) => void;
 
@@ -219,6 +222,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
     },
 
     // AI Scene State
+    isAiChatOpen: false,
+    toggleAiChat: () => set((state) => ({ isAiChatOpen: !state.isAiChatOpen })),
+    setIsAiChatOpen: (isOpen: boolean) => set({ isAiChatOpen: isOpen }),
     pendingAiScene: null,
     applyAiScene: (scene) => set({ 
       pendingAiScene: { scene, timestamp: Date.now() } 

@@ -1,19 +1,24 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { ArrowBigUpDash } from 'pixelarticons/react';
 import { useEditorStore } from '../../store/useEditorStore';
-
 
 export default function ChatPanel() {
   const [prompt, setPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isOpen, setIsOpen] = useState(true);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const { applyAiScene, canvasDimensions } = useEditorStore();
+  const { isAiChatOpen, applyAiScene, canvasDimensions } = useEditorStore();
 
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [prompt, isAiChatOpen]);
 
-  // Appel au serveur Express
-  const handleGenerate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGenerate = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!prompt.trim() || isLoading) return;
 
     setIsLoading(true);
@@ -36,7 +41,6 @@ export default function ChatPanel() {
         throw new Error(data.error || 'Erreur lors de la génération.');
       }
 
-      // Dessine la scène reçue sur le calque actif
       applyAiScene(data.scene);
       setPrompt('');
     } catch (err: any) {
@@ -47,68 +51,48 @@ export default function ChatPanel() {
     }
   };
 
-  if (!isOpen) {
-    return (
-      <button
-        onClick={() => setIsOpen(true)}
-        className="absolute bottom-6 right-6 z-20 bg-[#8354E0] hover:bg-[#7140D4] text-white px-4 py-2.5 rounded-lg font-medium shadow-lg transition-all flex items-center gap-2"
-      >
-        ✨ Assistant IA
-      </button>
-    );
-  }
+  if (!isAiChatOpen) return null;
 
   return (
-    <div className="absolute bottom-6 right-6 z-20 w-96 bg-[#171717] border border-[#2A2A2A] rounded-xl shadow-2xl overflow-hidden flex flex-col text-white">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#2A2A2A] bg-[#1E1E1E]">
-        <div className="flex items-center gap-2">
-          <span className="text-base">✨</span>
-          <h3 className="font-semibold text-sm">Chat to Canvas (IA)</h3>
+    <div className="absolute bottom-6 left-28 z-20 w-80 md:w-96 bg-[#171717] shadow-2xl px-4.5 py-4 flex flex-col gap-2 text-white">
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs px-2.5 py-1.5 rounded">
+          {error}
         </div>
-        <button
-          onClick={() => setIsOpen(false)}
-          className="text-[#737373] hover:text-white transition-colors text-lg leading-none"
-        >
-          ✕
-        </button>
-      </div>
+      )}
 
-      {/* Contenu */}
-      <div className="p-4 flex flex-col gap-3">
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-2.5 rounded">
-            {error}
-          </div>
-        )}
+      <form onSubmit={handleGenerate} className="flex flex-col justify-between gap-4 min-h-22.5">
+        <textarea
+          ref={textareaRef}
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleGenerate();
+            }
+          }}
+          placeholder="Describe your image..."
+          rows={1}
+          className="w-full bg-transparent outline-none resize-none text-sm text-white placeholder-[#737373] max-h-36 overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+          autoFocus
+        />
 
-
-        {/* Formulaire de prompt */}
-        <form onSubmit={handleGenerate} className="flex flex-col gap-2">
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Ex : Un volcan en éruption la nuit avec des étoiles..."
-            rows={3}
-            className="w-full bg-[#111111] border border-[#2A2A2A] focus:border-[#8354E0] outline-none rounded p-2.5 text-xs text-white placeholder-gray-500 resize-none transition-colors"
-          />
-
+        <div className="flex justify-end items-center mt-1">
           <button
             type="submit"
             disabled={isLoading || !prompt.trim()}
-            className="w-full bg-[#8354E0] hover:bg-[#7140D4] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold py-2 rounded transition-all flex items-center justify-center gap-2"
+            className="w-9 h-9 bg-[#8354E0] disabled:bg-[#2A2A2A] hover:bg-[#7140D4] disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-all cursor-pointer"
+            title="Générer avec Gemini"
           >
             {isLoading ? (
-              <>
-                <span className="animate-spin">⏳</span>
-                Génération par Gemini...
-              </>
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
-              '🎨 Générer sur le canvas'
+              <ArrowBigUpDash width={20} height={20} />
             )}
           </button>
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
   );
 }

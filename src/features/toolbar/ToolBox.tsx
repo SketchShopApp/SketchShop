@@ -1,8 +1,8 @@
-import { CursorMinimal, Hand, Shapes, Brush} from 'pixelarticons/react';
+import { CursorMinimal, Hand, Shapes, Brush, Sparkles } from 'pixelarticons/react';
 import { useEditorStore } from '../../store/useEditorStore';
 
 export default function ToolBox() {
-  const { activeTool, setActiveTool, settings, updateSetting } = useEditorStore();
+  const { activeTool, setActiveTool, settings, updateSetting, isAiChatOpen, toggleAiChat } = useEditorStore();
 
   return (
     <div className="flex flex-col justify-between py-2 gap-4 absolute h-fill-available m-6 bg-[#171717] z-10">
@@ -53,13 +53,24 @@ export default function ToolBox() {
         </button>
         <div id='separator' className='border-b border-white/10'></div>
       </div>
-      <div className="flex items-center justify-center m-2 mb-0">
-        <input 
-          type="color" 
-          value={settings.color}
-          onChange={(e) => updateSetting('color', e.target.value)}
-          className="w-full h-auto aspect-square bg-transparent border-none appearance-none cursor-pointer"
-        />
+      <div className="flex flex-col items-center gap-2 px-2">
+        <button 
+          onClick={toggleAiChat}
+          className={`flex items-center justify-center w-12 h-12 hover:bg-[#2A2A2A] ${
+            isAiChatOpen ? 'bg-[#8354E0] text-white hover:bg-[#8354E0]' : 'text-[#737373]'
+          } hover:text-white transition-colors`}
+          title="Assistant IA"
+        >
+          <Sparkles width={20} />
+        </button>
+        <div className="flex items-center justify-center h-auto w-full">
+          <input 
+            type="color" 
+            value={settings.color}
+            onChange={(e) => updateSetting('color', e.target.value)}
+            className="w-full h-auto aspect-square bg-transparent border-none appearance-none cursor-pointer"
+          />
+        </div>
       </div>
     </div>
   );
