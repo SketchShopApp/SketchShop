@@ -1,31 +1,6 @@
 import { useState } from 'react';
 import { useEditorStore } from '../../store/useEditorStore';
-import type { DrawingScene } from '../../core/types';
 
-// Une scène de test statique pour valider le moteur sans attendre l'API
-const MOCK_SCENE: DrawingScene = {
-  description: "Scène démo : Maison sous le soleil",
-  backgroundColor: "#E0F2FE",
-  commands: [
-    // Soleil
-    { type: 'circle', x: 700, y: 150, radius: 60, fill: '#FBBF24', stroke: '#F59E0B', strokeWeight: 3 },
-    // Sol vert
-    { type: 'rect', x: 0, y: 550, width: 1200, height: 250, fill: '#22C55E', stroke: 'none' },
-    // Maison (corps)
-    { type: 'rect', x: 300, y: 380, width: 220, height: 170, fill: '#F97316', stroke: '#9A3412', strokeWeight: 2 },
-    // Toit (triangle)
-    { type: 'triangle', x1: 280, y1: 380, x2: 410, y2: 260, x3: 540, y3: 380, fill: '#DC2626', stroke: '#991B1B', strokeWeight: 2 },
-    // Porte
-    { type: 'rect', x: 380, y: 470, width: 50, height: 80, fill: '#78350F', stroke: 'none' },
-    // Fenêtre
-    { type: 'rect', x: 330, y: 410, width: 45, height: 45, fill: '#E0F2FE', stroke: '#1E3A8A', strokeWeight: 2 },
-    // Arbre (tronc + feuillage)
-    { type: 'rect', x: 750, y: 450, width: 35, height: 100, fill: '#78350F' },
-    { type: 'circle', x: 767, y: 420, radius: 55, fill: '#15803D' },
-    // Texte
-    { type: 'text', text: 'Chat-to-Canvas AI', x: 50, y: 80, size: 28, fill: '#1E293B' }
-  ]
-};
 
 export default function ChatPanel() {
   const [prompt, setPrompt] = useState('');
@@ -35,11 +10,6 @@ export default function ChatPanel() {
 
   const { applyAiScene, canvasDimensions } = useEditorStore();
 
-  // Test local immédiat sans passer par l'IA
-  const handleTestMock = () => {
-    setError(null);
-    applyAiScene(MOCK_SCENE);
-  };
 
   // Appel au serveur Express
   const handleGenerate = async (e: React.FormEvent) => {
@@ -112,14 +82,6 @@ export default function ChatPanel() {
           </div>
         )}
 
-        {/* Bouton de test rapide */}
-        <button
-          type="button"
-          onClick={handleTestMock}
-          className="w-full bg-[#2A2A2A] hover:bg-[#333333] text-xs text-gray-300 py-1.5 px-3 rounded transition-colors"
-        >
-          🧪 Tester scène démo (Mock sans API)
-        </button>
 
         {/* Formulaire de prompt */}
         <form onSubmit={handleGenerate} className="flex flex-col gap-2">
