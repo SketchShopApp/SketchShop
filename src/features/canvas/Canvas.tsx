@@ -3,6 +3,8 @@ import type { Sketch } from "@p5-wrapper/react";
 import type { Tool, Layer, DrawingSettings } from '../../core/types';
 import { useEditorStore } from "../../store/useEditorStore";
 import { applyThreshold, applyPixelate, applyASCII } from "./filters";
+import { renderDrawingScene } from '../../core/interpreter';
+import type { DrawingScene } from '../../core/types';
 
 interface CanvasProps {
   activeTool: Tool;
@@ -17,6 +19,7 @@ interface CanvasProps {
   saveHistory?: () => void;
   historyIndex?: number;
   [key: string]: any;
+  pendingAiScene?: { scene: DrawingScene; timestamp: number } | null;
 }
 
 const sketch: Sketch<CanvasProps> = (p5) => {
@@ -40,6 +43,7 @@ const sketch: Sketch<CanvasProps> = (p5) => {
   let speedHistory: number[] = [];
   const SPEED_HISTORY_SIZE = 5;
   let lastFilterTimestamp = 0;
+  let lastAiTimestamp = 0;
   let onUpdateCanvas: ((dataUrl: string) => void) | undefined;
   let onUpdateLayer: ((id: string, dataUrl: string) => void) | undefined;
   let saveHistoryProp: (() => void) | undefined;
@@ -150,6 +154,20 @@ const sketch: Sketch<CanvasProps> = (p5) => {
         const g = layerGraphics.get(activeLayer.id);
         if (g) {
           applyFilterEffect(g, props.applyFilter.type);
+          needsSync = true;
+          syncToStore();
+          saveHistoryProp?.();
+        }
+      }
+    }
+
+    if (props.pendingAiScene && props.pendingAiScene.timestamp > lastAiTimestamp) {
+      lastAiTimestamp = props.pendingAiScene.timestamp;
+      const activeLayer = layersData.find(l => l.isActive);
+      if (activeLayer) {
+        const g = layerGraphics.get(activeLayer.id);
+        if (g) {
+          renderDrawingScene(g, props.pendingAiScene.scene);
           needsSync = true;
           syncToStore();
           saveHistoryProp?.();
@@ -379,7 +397,7 @@ const sketch: Sketch<CanvasProps> = (p5) => {
 };
 
 export function Canvas() {
-  const { activeTool, layers, settings, applyFilter, canvasDimensions, canvasBackground, setPreviewUrl, layerData, setLayerData, saveHistory, historyIndex } = useEditorStore();
+  const { activeTool, layers, settings, applyFilter, canvasDimensions, canvasBackground, setPreviewUrl, layerData, setLayerData, saveHistory, historyIndex, pendingAiScene  } = useEditorStore();
   
   // We don't have direct access to the p5 instance here, 
   // but the sketch itself handles periodic syncing.
@@ -393,6 +411,7 @@ export function Canvas() {
       layers={layers} 
       settings={settings} 
       applyFilter={applyFilter} 
+      pendingAiScene={pendingAiScene}
       canvasDimensions={canvasDimensions}
       canvasBackground={canvasBackground}
       layerData={layerData}
