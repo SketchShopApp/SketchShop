@@ -3,7 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "scripts": {},
+  "scripts": {
+    "dev": "node --watch --import tsx --no-warnings src/index.ts"
+  },
   "dependencies": {
     "@google/genai": "^2.28.0",
     "cors": "^2.8.6",
