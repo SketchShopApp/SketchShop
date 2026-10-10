@@ -51,7 +51,7 @@ const drawingSceneSchema = {
           text: { type: Type.STRING, description: 'Contenu du texte à afficher.' },
           size: { type: Type.NUMBER, description: 'Taille de la police en px.' }
         },
-        required: ['type']
+        required: ['type', 'fill']
       }
     }
   },
@@ -63,27 +63,44 @@ const drawingSceneSchema = {
  */
 export async function generateDrawingScene(
   userPrompt: string,
-  canvasWidth: number = 800,
-  canvasHeight: number = 600
+  canvasWidth: number = 1200,
+  canvasHeight: number = 800
 ): Promise<DrawingScene> {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error('La clé d\'API Gemini n\'est pas définie dans les variables d\'environnement.');
-    }
-    const ai = new GoogleGenAI({ apiKey });
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('La clé d\'API Gemini n\'est pas définie dans les variables d\'environnement.');
+  }
+  const ai = new GoogleGenAI({ apiKey });
 
   const systemInstruction = `
-Tu es un artiste et programmeur expert p5.js.
-Ton rôle est de traduire les demandes de l'utilisateur en une composition graphique harmonieuse.
-Règles du canvas :
-- Dimensions : largeur ${canvasWidth}px, hauteur ${canvasHeight}px.
-- Origine (0, 0) : coin supérieur gauche.
-- x augmente vers la droite (0 à ${canvasWidth}).
-- y augmente vers le bas (0 à ${canvasHeight}).
-- L'ordre des formes dans 'commands' compte : les premières formes sont dessinées en dessous, les dernières au-dessus.
-- Choisis des palettes de couleurs esthétiques et modernes.
-- Décompose les objets complexes en formes simples (ex: un sapin = triangles verts superposés + rectangle marron pour le tronc).
-- Pour chaque forme, tu DOIS impérativement fournir sa couleur ('fill' ou 'stroke'). Pour un 'circle', 'radius' est obligatoire. Pour un 'rect', 'width' et 'height' sont obligatoires. Compose des scènes détaillées et riches avec au minimum 5 à 15 formes.
+Tu es un illustrateur vectoriel expert en p5.js sur un canvas de ${canvasWidth}x${canvasHeight} pixels.
+Ton objectif est de créer une œuvre graphique riche, moderne et détaillée en décomposant la demande de l'utilisateur en une série de formes géométriques.
+
+FORMAT JSON STRICT REQUIS :
+{
+  "description": "Courte description en français",
+  "backgroundColor": "#1E1035",
+  "commands": [
+    // Entre 20 et 35 formes ordonnées de l'arrière-plan vers le premier plan !
+  ]
+}
+
+FORMES AUTORISÉES DANS 'commands' :
+- { "type": "rect", "x": 0, "y": 450, "width": ${canvasWidth}, "height": 350, "fill": "#0F172A" }
+- { "type": "circle", "x": 600, "y": 250, "radius": 70, "fill": "#F59E0B" }
+- { "type": "triangle", "x1": 100, "y1": 450, "x2": 250, "y2": 200, "x3": 400, "y3": 450, "fill": "#334155" }
+- { "type": "line", "x1": 0, "y1": 500, "x2": ${canvasWidth}, "y2": 500, "stroke": "#38BDF8", "strokeWeight": 2 }
+- { "type": "text", "text": "Titre", "x": 50, "y": 50, "size": 24, "fill": "#FFFFFF" }
+
+RÈGLES D'OR :
+1. Génère OBLIGATOIREMENT entre 20 et 35 formes pour composer une scène complète.
+2. Définis TOUJOURS une couleur 'fill' (code hexadécimal).
+3. Décompose par plans successifs :
+   - Fond / Ciel (backgroundColor)
+   - Lointain : soleil/lune, mer, montagnes, ciel étoilé ou nuages
+   - Bâtiment / Sujet principal : façades, toits, baies vitrées, piliers, terrasse
+   - Détails / Premier plan : piscine, reflets sur l'eau, arbres/palmiers, éclairages.
+Ne génère JAMAIS moins de 20 formes !
 `;
 
   const response = await ai.models.generateContent({
@@ -91,8 +108,7 @@ Règles du canvas :
     contents: userPrompt,
     config: {
       systemInstruction,
-      responseMimeType: 'application/json',
-      responseSchema: drawingSceneSchema,
+      responseMimeType: 'application/json', // Force le retour en JSON propre
       temperature: 0.7
     }
   });
@@ -101,7 +117,6 @@ Règles du canvas :
     throw new Error('Réponse vide reçue de Gemini');
   }
 
-  // Le résultat est garanti conforme au schéma JSON
   const scene: DrawingScene = JSON.parse(response.text);
   return scene;
 }
