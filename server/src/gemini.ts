@@ -45,7 +45,7 @@ RÈGLES D'OR :
    - Lointain : soleil/lune, mer, montagnes, ciel étoilé ou nuages
    - Bâtiment / Sujet principal : façades, toits, baies vitrées, piliers, terrasse
    - Détails / Premier plan : piscine, reflets sur l'eau, arbres/palmiers, éclairages.
-Ne génère JAMAIS moins de 20 formes !
+4. Aucun commentaire dans le JSON (pas de // ni /* */).
 `;
 
   const response = await ai.models.generateContent({

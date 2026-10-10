@@ -54,7 +54,7 @@ export default function ChatPanel() {
   if (!isAiChatOpen) return null;
 
   return (
-    <div className="absolute bottom-6 left-28 z-20 w-80 md:w-96 bg-[#171717] shadow-2xl px-4.5 py-4 flex flex-col gap-2 text-white">
+    <div className="absolute bottom-6 left-24 z-20 w-80 md:w-96 bg-[#171717] shadow-2xl px-4.5 py-4 flex flex-col gap-2 text-white">
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs px-2.5 py-1.5 rounded">
           {error}
