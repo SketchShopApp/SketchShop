@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react"
 import Button from "./Button"
 import { motion } from "motion/react"
 import { AvatarCircle } from 'pixelarticons/react'
@@ -15,14 +14,7 @@ const NAV_ITEMS = [
 export default function Navbar() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [activeTab, setActiveTab] = useState<string>("FILE")
-
-  useEffect(() => {
-    const currentItem = NAV_ITEMS.find(item => item.path === location.pathname)
-    if (currentItem) {
-      setActiveTab(currentItem.label)
-    }
-  }, [location.pathname])
+  const activeTab = NAV_ITEMS.find(item => item.path === location.pathname)?.label || "FILE"
 
   return (
     <nav className="border-b border-white/10 bg-[#0b0b0b] px-6 py-5">

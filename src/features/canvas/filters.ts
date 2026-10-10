@@ -9,11 +9,11 @@ export function applyThreshold(g: any, settings: DrawingSettings) {
   const threshold = settings.threshold;
 
   for (let i = 0; i < data.length; i += 4) {
-    let r = data[i];
-    let g = data[i + 1];
-    let b = data[i + 2];
-    let gray = 0.299 * r + 0.587 * g + 0.114 * b;
-    let val = gray < threshold ? 0 : 255;
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+    const val = gray < threshold ? 0 : 255;
     data[i] = val;
     data[i + 1] = val;
     data[i + 2] = val;
@@ -34,10 +34,10 @@ export function applyPixelate(g: any, settings: DrawingSettings) {
       let red = 0, green = 0, blue = 0, alpha = 0, count = 0;
       for (let py = 0; py < pixelSize; py++) {
         for (let px = 0; px < pixelSize; px++) {
-          let posX = x + px;
-          let posY = y + py;
+          const posX = x + px;
+          const posY = y + py;
           if (posX < w && posY < h) {
-            let index = (posY * w + posX) * 4;
+            const index = (posY * w + posX) * 4;
             if (data[index + 3] > 0) {
               red += data[index];
               green += data[index + 1];
@@ -52,10 +52,10 @@ export function applyPixelate(g: any, settings: DrawingSettings) {
         red /= count; green /= count; blue /= count; alpha /= count;
         for (let py = 0; py < pixelSize; py++) {
           for (let px = 0; px < pixelSize; px++) {
-            let posX = x + px;
-            let posY = y + py;
+            const posX = x + px;
+            const posY = y + py;
             if (posX < w && posY < h) {
-              let index = (posY * w + posX) * 4;
+              const index = (posY * w + posX) * 4;
               data[index] = red;
               data[index + 1] = green;
               data[index + 2] = blue;
@@ -91,10 +91,10 @@ export function applyASCII(g: any, settings: DrawingSettings) {
       let red = 0, green = 0, blue = 0, count = 0;
       for (let py = 0; py < scale; py++) {
         for (let px = 0; px < scale; px++) {
-          let posX = x + px;
-          let posY = y + py;
+          const posX = x + px;
+          const posY = y + py;
           if (posX < w && posY < h) {
-            let index = (posY * w + posX) * 4;
+            const index = (posY * w + posX) * 4;
             red += data[index];
             green += data[index + 1];
             blue += data[index + 2];

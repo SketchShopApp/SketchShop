@@ -37,7 +37,7 @@ const sketch: Sketch<CanvasProps> = (p5) => {
   const layerGraphics = new Map<string, any>();
   const lastSyncedDataUrl = new Map<string, string>();
   let rectangleStart: { x: number, y: number } | null = null;
-  let speedHistory: number[] = [];
+  const speedHistory: number[] = [];
   const SPEED_HISTORY_SIZE = 5;
   let lastFilterTimestamp = 0;
   let onUpdateCanvas: ((dataUrl: string) => void) | undefined;
@@ -47,7 +47,7 @@ const sketch: Sketch<CanvasProps> = (p5) => {
   let needsSync = false;
   let wasDrawingSession = false;
 
-  let localMouse = { x: 0, y: 0 };
+  const localMouse = { x: 0, y: 0 };
   let prevLocalMouse = { x: 0, y: 0 };
 
   function updateLocalMouse() {
