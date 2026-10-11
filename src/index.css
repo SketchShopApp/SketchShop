@@ -33,5 +33,13 @@ body {
 	background-image: radial-gradient(#696969 1.2px, transparent 1.2px);
 	background-size: 18px 18px;
 	background-color: #2e2e2e;
-}
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }

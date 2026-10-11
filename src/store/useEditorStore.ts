@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Tool, Layer, DrawingSettings } from '../core/types';
+import type { Tool, Layer, DrawingSettings, DrawingScene  } from '../core/types';
 
 export interface HistorySnapshot {
   layers: Layer[];
@@ -38,6 +38,13 @@ interface EditorState {
   // Filter State
   applyFilter: { type: 'threshold' | 'pixelate' | 'ascii', timestamp: number } | undefined;
   triggerFilter: (type: 'threshold' | 'pixelate' | 'ascii') => void;
+
+  // AI Scene State
+  isAiChatOpen: boolean;
+  toggleAiChat: () => void;
+  setIsAiChatOpen: (isOpen: boolean) => void;
+  pendingAiScene: { scene: DrawingScene; timestamp: number } | null;
+  applyAiScene: (scene: DrawingScene) => void;
 
   // Export & Persistence State
   previewUrl: string | null;
@@ -213,6 +220,15 @@ export const useEditorStore = create<EditorState>((set, get) => {
         historyIndex: 0,
       });
     },
+
+    // AI Scene State
+    isAiChatOpen: false,
+    toggleAiChat: () => set((state) => ({ isAiChatOpen: !state.isAiChatOpen })),
+    setIsAiChatOpen: (isOpen: boolean) => set({ isAiChatOpen: isOpen }),
+    pendingAiScene: null,
+    applyAiScene: (scene) => set({ 
+      pendingAiScene: { scene, timestamp: Date.now() } 
+    }),  
 
     // Filter State
     applyFilter: undefined,
