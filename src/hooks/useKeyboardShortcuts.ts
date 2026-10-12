@@ -47,6 +47,12 @@ export function useKeyboardShortcuts() {
       } else if (isCtrlKey && key === 'y') {
         event.preventDefault();
         redo();
+      } else if (isCtrlKey && key === 'j') {
+        event.preventDefault();
+        useEditorStore.getState().duplicateActiveLayer();
+      } else if (isCtrlKey && key === 'e') {
+        event.preventDefault();
+        useEditorStore.getState().triggerMergeDown();
       }
     };
 

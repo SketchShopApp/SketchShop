@@ -1,14 +1,21 @@
-import { Eye, EyeOff, Lock, Unlock } from 'pixelarticons/react';
+import { Eye, EyeOff, Lock, Unlock, CornerDownRight, Grid3x3 } from 'pixelarticons/react';
+import type { BlendMode } from '../../core/types';
 
 interface LayerCardProps {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   isActive: boolean;
   isVisible: boolean;
   isLocked: boolean;
+  isClippingMask?: boolean;
+  isTransparentLocked?: boolean;
+  blendMode?: BlendMode;
+  canClip?: boolean;
   thumbnail: string | null;
   onToggleVisibility?: () => void;
   onToggleLock?: () => void;
+  onToggleClippingMask?: () => void;
+  onToggleTransparentLock?: () => void;
   onClick?: () => void;
 }
 
@@ -18,65 +25,148 @@ export default function LayerCard({
   isActive,
   isVisible,
   isLocked,
+  isClippingMask = false,
+  isTransparentLocked = false,
+  blendMode = 'normal',
+  canClip = true,
   thumbnail,
   onToggleVisibility,
   onToggleLock,
+  onToggleClippingMask,
+  onToggleTransparentLock,
   onClick,
 }: LayerCardProps) {
   return (
     <div
       onClick={onClick}
-      className={`group flex items-center gap-3 p-3 cursor-pointer transition-colors ${
-        isActive ? 'bg-[#8354E0] text-white' : 'bg-transparent text-gray-400 hover:bg-[#2A2A2A]'
+      className={`group flex items-center gap-2 p-2.5 cursor-pointer transition-all border-b border-[#222222] select-none ${
+        isClippingMask ? 'pl-6 bg-[#1b1b22]/40' : ''
+      } ${
+        isActive
+          ? 'bg-[#8354E0] text-white shadow-sm'
+          : 'bg-transparent text-gray-400 hover:bg-[#252525]'
       }`}
     >
-
       {/* Visibility Toggle */}
       <button
+        type="button"
+        title={isVisible ? "Masquer le calque" : "Afficher le calque"}
         onClick={(e) => {
           e.stopPropagation();
           onToggleVisibility?.();
         }}
-        className={`p-1 hover:text-white transition-colors ${!isVisible && !isActive ? 'text-gray-600' : ''}`}
+        className={`p-1 hover:text-white transition-colors shrink-0 ${
+          !isVisible && !isActive ? 'text-gray-600' : ''
+        }`}
       >
-        {isVisible ? <Eye width={18} /> : <EyeOff width={18} />}
+        {isVisible ? <Eye width={16} height={16} /> : <EyeOff width={16} height={16} />}
       </button>
 
+      {/* Clipping Mask Arrow Indicator */}
+      {isClippingMask && (
+        <span
+          title="Masque d'écrêtage (lié au calque inférieur)"
+          className={`shrink-0 ${isActive ? 'text-purple-200' : 'text-purple-400'}`}
+        >
+          <CornerDownRight width={14} height={14} />
+        </span>
+      )}
+
       {/* Thumbnail */}
-      <div className={`w-10 h-10 bg-[#1A1A1A] border shrink-0 overflow-hidden ${
-        isActive ? 'border-purple-400' : 'border-gray-700'
-      }`}>
+      <div
+        className={`w-9 h-9 bg-checkerboard border shrink-0 overflow-hidden rounded-xs relative ${
+          isActive ? 'border-purple-300' : 'border-gray-700'
+        }`}
+      >
         {thumbnail ? (
           <img src={thumbnail} alt={title} className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gray-800">
-            <div className="w-4 h-4 border border-gray-600 rotate-45"></div>
+          <div className="w-full h-full flex items-center justify-center bg-[#1e1e1e]">
+            <div className="w-3 h-3 border border-gray-600 rotate-45"></div>
           </div>
         )}
       </div>
 
-      {/* Texts */}
-      <div className="flex-1 min-w-36">
-        <h4 className={`text-sm font-medium truncate ${isActive ? 'text-white' : 'text-gray-200'}`}>
-          {title}
-        </h4>
-        <p className={`text-xs truncate ${isActive ? 'text-purple-200' : 'text-gray-500'}`}>
-          {subtitle}
+      {/* Layer Name & Meta info */}
+      <div className="flex-1 min-w-0 flex flex-col justify-center">
+        <div className="flex items-center gap-1.5">
+          <h4 className={`text-xs font-semibold truncate ${isActive ? 'text-white' : 'text-gray-200'}`}>
+            {title}
+          </h4>
+          {blendMode && blendMode !== 'normal' && (
+            <span
+              className={`text-[9px] uppercase px-1 py-0.2 rounded font-mono shrink-0 ${
+                isActive
+                  ? 'bg-purple-900/60 text-purple-100 border border-purple-400/40'
+                  : 'bg-black/40 text-gray-400 border border-gray-700'
+              }`}
+            >
+              {blendMode}
+            </span>
+          )}
+        </div>
+        <p className={`text-[10px] truncate ${isActive ? 'text-purple-200' : 'text-gray-500'}`}>
+          {subtitle || (isClippingMask ? "Masque d'écrêtage" : isActive ? "Calque actif" : "Calque standard")}
         </p>
       </div>
 
-      {/* Lock Status */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggleLock?.();
-        }}
-        className={`px-1 hover:text-white transition-colors ${
-          !isLocked ? 'opacity-0 group-hover:opacity-100' : ''
-        } ${isActive ? 'text-white' : ''}`}
-      >
-        {isLocked ? <Lock width={18} /> : <Unlock width={18} />}
-      </button>
+      {/* Layer Action Badges / Controls */}
+      <div className="flex items-center gap-1 shrink-0">
+        {/* Transparent Lock Button */}
+        {onToggleTransparentLock && (
+          <button
+            type="button"
+            title={
+              isTransparentLocked
+                ? "Verrouillage de la transparence activé (cliquez pour déverrouiller)"
+                : "Verrouiller la transparence (dessiner uniquement sur les pixels existants)"
+            }
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleTransparentLock();
+            }}
+            className={`p-1 rounded transition-colors ${
+              isTransparentLocked
+                ? isActive
+                  ? 'bg-purple-900 text-amber-300'
+                  : 'bg-[#2A2A2A] text-amber-400'
+                : 'opacity-0 group-hover:opacity-60 hover:!opacity-100 text-gray-400 hover:text-white'
+            }`}
+          >
+            <Grid3x3 width={14} height={14} />
+          </button>
+        )}
+
+        {/* Clipping Mask Button */}
+        {canClip && onToggleClippingMask && !isClippingMask && (
+          <button
+            type="button"
+            title="Créer un masque d'écrêtage avec le calque inférieur"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleClippingMask();
+            }}
+            className="p-1 rounded opacity-0 group-hover:opacity-60 hover:!opacity-100 text-gray-400 hover:text-white transition-colors"
+          >
+            <CornerDownRight width={14} height={14} />
+          </button>
+        )}
+
+        {/* Lock Layer Status */}
+        <button
+          type="button"
+          title={isLocked ? "Déverrouiller le calque" : "Verrouiller le calque"}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleLock?.();
+          }}
+          className={`p-1 hover:text-white transition-colors ${
+            !isLocked ? 'opacity-0 group-hover:opacity-100 text-gray-400' : ''
+          } ${isActive ? 'text-white' : ''}`}
+        >
+          {isLocked ? <Lock width={15} height={15} /> : <Unlock width={15} height={15} />}
+        </button>
+      </div>
     </div>
   );
 }
