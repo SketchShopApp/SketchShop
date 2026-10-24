@@ -35,6 +35,7 @@ interface EditorState {
   duplicateActiveLayer: () => void;
   duplicateLayer: (id: string) => void;
   updateActiveLayerOpacity: (opacity: number) => void;
+  updateLayerOpacity: (id: string, opacity: number) => void;
   updateActiveLayerBlendMode: (blendMode: BlendMode) => void;
   updateLayerBlendMode: (id: string, blendMode: BlendMode) => void;
   toggleLayerClippingMask: (id: string) => void;
@@ -238,6 +239,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
         get().duplicateLayer(active.id);
       }
     },
+    updateLayerOpacity: (id, opacity) => set((state) => ({
+      layers: state.layers.map(l => l.id === id ? { ...l, opacity } : l)
+    })),
     updateActiveLayerOpacity: (opacity) => set((state) => ({
       layers: state.layers.map(l => l.isActive ? { ...l, opacity } : l)
     })),

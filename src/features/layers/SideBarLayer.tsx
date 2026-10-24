@@ -75,7 +75,7 @@ export default function SideBarLayer() {
               onChange={(e) => updateActiveLayerOpacity(parseInt(e.target.value))}
               onMouseUp={saveHistory}
               onTouchEnd={saveHistory}
-              className="h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-violet-500 my-2"
+              className="h-4 bg-[#2A2A2A] generator-input w-full rounded-sm appearance-none cursor-pointer accent-violet-500"
             />
           </div>
         </div>
