@@ -38,7 +38,7 @@ export default function SideBarLayer() {
     <aside className="flex flex-col right-0 absolute w-72 lg:w-84 h-fill-available m-6 bg-[#171717] z-10 overflow-hidden">
 
       {/* Layer Settings (Blend Mode & Opacity) */}
-      <div className="flex flex-col gap-2.5 p-3 bg-[#1a1a1a]">
+      <div className="flex flex-col gap-2.5 p-3">
         <div className="flex items-center justify-between gap-2">
           {/* Blend Mode Selector */}
           <div className="flex-1 flex flex-col gap-1">
@@ -81,7 +81,7 @@ export default function SideBarLayer() {
         </div>
 
         {/* Quick Toggles: Lock Transparency, Clipping Mask, Filters */}
-        <div className="flex items-center justify-between pt-1 border-t border-[#262626]">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             {/* Lock Transparency Button */}
             <button
@@ -93,7 +93,7 @@ export default function SideBarLayer() {
                   : "Verrouiller les pixels transparents (peindre sans déborder)"
               }
               onClick={() => activeLayer && toggleLayerTransparentLock(activeLayer.id)}
-              className={`p-1.5 rounded transition-all text-xs flex items-center gap-1 border ${
+              className={`p-2 transition-all text-xs flex items-center gap-1 ${
                 activeLayer?.isTransparentLocked
                   ? 'bg-purple-950/80 text-amber-300 border-purple-500/80 shadow-xs'
                   : 'bg-[#242424] text-gray-400 hover:text-white border-[#333333]'
@@ -115,7 +115,7 @@ export default function SideBarLayer() {
                   : "Créer un masque d'écrêtage (lier au calque inférieur)"
               }
               onClick={() => activeLayer && toggleLayerClippingMask(activeLayer.id)}
-              className={`p-1.5 rounded transition-all text-xs flex items-center gap-1 border ${
+              className={`p-2  transition-all text-xs flex items-center gap-1  ${
                 !canClipActive
                   ? 'opacity-30 cursor-not-allowed bg-[#242424] text-gray-500 border-[#333333]'
                   : activeLayer?.isClippingMask
@@ -136,7 +136,7 @@ export default function SideBarLayer() {
                 e.target.value = "none";
               }
             }}
-            className="bg-[#242424] text-gray-300 hover:text-white text-[10px] py-1 px-1.5 rounded border border-[#333333] outline-none cursor-pointer"
+            className="bg-[#242424] text-gray-300 hover:text-white text-[10px] py-1.5 px-1.5 outline-none cursor-pointer"
             defaultValue="none"
             title="Appliquer un filtre d'effet pixel"
           >

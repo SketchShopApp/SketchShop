@@ -125,11 +125,11 @@ export default function LayerCard({
               e.stopPropagation();
               onToggleTransparentLock();
             }}
-            className={`p-1 rounded transition-colors ${
+            className={`p-1 transition-colors ${
               isTransparentLocked
                 ? isActive
-                  ? 'bg-purple-900 text-amber-300'
-                  : 'bg-[#2A2A2A] text-amber-400'
+                  ? ' text-amber-300'
+                  : ' text-amber-400'
                 : 'opacity-0 group-hover:opacity-60 hover:!opacity-100 text-gray-400 hover:text-white'
             }`}
           >
@@ -146,7 +146,7 @@ export default function LayerCard({
               e.stopPropagation();
               onToggleClippingMask();
             }}
-            className="p-1 rounded opacity-0 group-hover:opacity-60 hover:!opacity-100 text-gray-400 hover:text-white transition-colors"
+            className="p-1 opacity-0 group-hover:opacity-60 hover:!opacity-100 text-gray-400 hover:text-white transition-colors"
           >
             <CornerDownRight width={14} height={14} />
           </button>
