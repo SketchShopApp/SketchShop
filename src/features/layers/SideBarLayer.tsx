@@ -35,29 +35,18 @@ export default function SideBarLayer() {
   };
 
   return (
-    <aside className="flex flex-col right-0 absolute h-fill-available m-6 w-72 bg-[#171717] z-10 border border-[#282828] rounded-lg shadow-2xl overflow-hidden">
-      {/* Header title */}
-      <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[#262626] bg-[#1d1d1d]">
-        <span className="text-[11px] font-bold tracking-wider text-gray-300 uppercase">
-          Calques
-        </span>
-        <span className="text-[10px] text-gray-500 font-mono">
-          {layers.length} {layers.length > 1 ? 'calques' : 'calque'}
-        </span>
-      </div>
+    <aside className="flex flex-col right-0 absolute w-72 lg:w-84 h-fill-available m-6 bg-[#171717] z-10 overflow-hidden">
 
       {/* Layer Settings (Blend Mode & Opacity) */}
-      <div className="flex flex-col gap-2.5 p-3 border-b border-[#262626] bg-[#1a1a1a]">
+      <div className="flex flex-col gap-2.5 p-3 bg-[#1a1a1a]">
         <div className="flex items-center justify-between gap-2">
           {/* Blend Mode Selector */}
           <div className="flex-1 flex flex-col gap-1">
-            <label className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
-              Fusion
-            </label>
+
             <select 
               value={activeLayer?.blendMode || "normal"}
               onChange={(e) => updateActiveLayerBlendMode(e.target.value as BlendMode)}
-              className="bg-[#2A2A2A] text-white text-xs py-1 px-2 rounded border border-[#383838] outline-none cursor-pointer hover:border-gray-500 transition-colors"
+              className="bg-[#2A2A2A] select-fusion text-white text-xs py-2 px-2 outline-none cursor-pointer hover:border-gray-500 transition-colors"
             >
               <option value="normal">Normal</option>
               <option value="multiply">Produit (Multiply)</option>
@@ -200,13 +189,13 @@ export default function SideBarLayer() {
       </Reorder.Group>
 
       {/* Footer Actions */}
-      <div className="bg-[#202020] border-t border-[#2a2a2a] text-[#ADAAAA] flex items-center justify-around px-2 py-2">
+      <div className="bg-[#202020]  text-[#ADAAAA] flex items-center justify-around px-2 py-2">
         {/* Add Layer */}
         <button
           type="button"
           onClick={addLayer}
           title="Nouveau calque"
-          className="p-1.5 rounded hover:bg-[#2e2e2e] hover:text-[#8354E0] transition-colors"
+          className="p-1.5 hover:text-[#8354E0] transition-colors"
         >
           <PlusBox width={17} height={17} />
         </button>
@@ -216,7 +205,7 @@ export default function SideBarLayer() {
           type="button"
           onClick={duplicateActiveLayer}
           title="Dupliquer le calque actif (Ctrl+J)"
-          className="p-1.5 rounded hover:bg-[#2e2e2e] hover:text-[#8354E0] transition-colors"
+          className="p-1.5 hover:text-[#8354E0] transition-colors"
         >
           <Copy width={17} height={17} />
         </button>
@@ -231,9 +220,9 @@ export default function SideBarLayer() {
               ? "Fusionner vers le bas (Ctrl+E)"
               : "Impossible de fusionner le calque inférieur"
           }
-          className={`p-1.5 rounded transition-colors ${
+          className={`p-1.5 transition-colors ${
             canMergeDown
-              ? 'hover:bg-[#2e2e2e] hover:text-[#8354E0] cursor-pointer'
+              ? ' hover:text-[#8354E0] cursor-pointer'
               : 'opacity-25 cursor-not-allowed'
           }`}
         >
@@ -246,10 +235,10 @@ export default function SideBarLayer() {
           disabled={layers.length <= 1}
           onClick={deleteActiveLayer}
           title={layers.length <= 1 ? "Impossible de supprimer l'unique calque" : "Supprimer le calque"}
-          className={`p-1.5 rounded transition-colors ${
+          className={`p-1.5 transition-colors ${
             layers.length <= 1
               ? 'opacity-25 cursor-not-allowed'
-              : 'hover:bg-[#2e2e2e] hover:text-red-500 cursor-pointer'
+              : ' hover:text-red-500 cursor-pointer'
           }`}
         >
           <svg 

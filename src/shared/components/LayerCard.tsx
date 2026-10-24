@@ -39,7 +39,7 @@ export default function LayerCard({
   return (
     <div
       onClick={onClick}
-      className={`group flex items-center gap-2 p-2.5 cursor-pointer transition-all border-b border-[#222222] select-none ${
+      className={`group flex items-center gap-2 p-2.5 cursor-pointer transition-all select-none ${
         isClippingMask ? 'pl-6 bg-[#1b1b22]/40' : ''
       } ${
         isActive
