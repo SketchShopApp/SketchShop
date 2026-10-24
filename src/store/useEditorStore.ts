@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Tool, Layer, DrawingSettings, DrawingScene  } from '../core/types';
+import type { Tool, Layer, DrawingSettings, DrawingScene, BlendMode } from '../core/types';
 
 export interface HistorySnapshot {
   layers: Layer[];
@@ -32,7 +32,17 @@ interface EditorState {
   setActiveLayer: (id: string) => void;
   addLayer: () => void;
   deleteActiveLayer: () => void;
+  duplicateActiveLayer: () => void;
+  duplicateLayer: (id: string) => void;
   updateActiveLayerOpacity: (opacity: number) => void;
+  updateLayerOpacity: (id: string, opacity: number) => void;
+  updateActiveLayerBlendMode: (blendMode: BlendMode) => void;
+  updateLayerBlendMode: (id: string, blendMode: BlendMode) => void;
+  toggleLayerClippingMask: (id: string) => void;
+  toggleLayerTransparentLock: (id: string) => void;
+  pendingMergeDown: { timestamp: number } | null;
+  triggerMergeDown: () => void;
+  completeMergeDown: (upperId: string, lowerId: string, mergedDataUrl: string) => void;
   resetEditor: (params: { dimensions: { width: number; height: number }, background?: string }) => void;
 
   // Filter State
@@ -102,6 +112,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
       isLocked: false,
       isActive: true,
       opacity: 100,
+      blendMode: 'normal',
+      isClippingMask: false,
+      isTransparentLocked: false,
     }
   ];
 
@@ -166,6 +179,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
           isLocked: false,
           isActive: true,
           opacity: 100,
+          blendMode: 'normal',
+          isClippingMask: false,
+          isTransparentLocked: false,
         };
         return {
           layers: [...state.layers.map(l => ({ ...l, isActive: false })), newLayer]
@@ -187,9 +203,105 @@ export const useEditorStore = create<EditorState>((set, get) => {
       });
       saveHistory();
     },
+    duplicateLayer: (id) => {
+      set((state) => {
+        const targetIndex = state.layers.findIndex(l => l.id === id);
+        if (targetIndex === -1) return state;
+        const source = state.layers[targetIndex];
+        const newId = Math.random().toString(36).substring(2, 9);
+        const newLayer: Layer = {
+          ...source,
+          id: newId,
+          name: `${source.name} (copie)`,
+          isActive: true,
+        };
+
+        const newLayers = state.layers.map(l => ({ ...l, isActive: false }));
+        // Place duplicate directly above the duplicated layer
+        newLayers.splice(targetIndex + 1, 0, newLayer);
+
+        const newLayerData = new Map(state.layerData);
+        const srcData = state.layerData.get(source.id);
+        if (srcData) {
+          newLayerData.set(newId, srcData);
+        }
+
+        return {
+          layers: newLayers,
+          layerData: newLayerData,
+        };
+      });
+      saveHistory();
+    },
+    duplicateActiveLayer: () => {
+      const active = get().layers.find(l => l.isActive);
+      if (active) {
+        get().duplicateLayer(active.id);
+      }
+    },
+    updateLayerOpacity: (id, opacity) => set((state) => ({
+      layers: state.layers.map(l => l.id === id ? { ...l, opacity } : l)
+    })),
     updateActiveLayerOpacity: (opacity) => set((state) => ({
       layers: state.layers.map(l => l.isActive ? { ...l, opacity } : l)
     })),
+    updateActiveLayerBlendMode: (blendMode) => {
+      set((state) => ({
+        layers: state.layers.map(l => l.isActive ? { ...l, blendMode } : l)
+      }));
+      saveHistory();
+    },
+    updateLayerBlendMode: (id, blendMode) => {
+      set((state) => ({
+        layers: state.layers.map(l => l.id === id ? { ...l, blendMode } : l)
+      }));
+      saveHistory();
+    },
+    toggleLayerClippingMask: (id) => {
+      set((state) => {
+        const index = state.layers.findIndex(l => l.id === id);
+        if (index <= 0) return state; // Bottom layer cannot be clipped
+        return {
+          layers: state.layers.map((l, i) =>
+            i === index ? { ...l, isClippingMask: !l.isClippingMask } : l
+          ),
+        };
+      });
+      saveHistory();
+    },
+    toggleLayerTransparentLock: (id) => {
+      set((state) => ({
+        layers: state.layers.map(l =>
+          l.id === id ? { ...l, isTransparentLocked: !l.isTransparentLocked } : l
+        ),
+      }));
+      saveHistory();
+    },
+    pendingMergeDown: null,
+    triggerMergeDown: () => {
+      const state = get();
+      const activeIndex = state.layers.findIndex(l => l.isActive);
+      if (activeIndex <= 0) return; // Cannot merge down bottom layer
+      set({ pendingMergeDown: { timestamp: Date.now() } });
+    },
+    completeMergeDown: (upperId, lowerId, mergedDataUrl) => {
+      set((state) => {
+        const newLayers = state.layers
+          .filter(l => l.id !== upperId)
+          .map(l => l.id === lowerId ? { ...l, isActive: true } : l);
+
+        const newLayerData = new Map(state.layerData);
+        newLayerData.delete(upperId);
+        newLayerData.set(lowerId, mergedDataUrl);
+
+        return {
+          layers: newLayers,
+          layerData: newLayerData,
+          pendingMergeDown: null,
+        };
+      });
+      saveHistory();
+    },
     resetEditor: ({ dimensions, background = '#ffffff' }) => {
       const newLayers = [
         {
@@ -199,6 +311,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
           isLocked: false,
           isActive: true,
           opacity: 100,
+          blendMode: 'normal' as BlendMode,
+          isClippingMask: false,
+          isTransparentLocked: false,
         }
       ];
       const newLayerData = new Map<string, string>();
@@ -216,6 +331,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
         layerData: newLayerData,
         activeTool: 'brush',
         applyFilter: undefined,
+        pendingMergeDown: null,
         history: [newSnapshot],
         historyIndex: 0,
       });
@@ -255,6 +371,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
             isLocked: false,
             isActive: true,
             opacity: 100,
+            blendMode: 'normal',
+            isClippingMask: false,
+            isTransparentLocked: false,
           }
         ],
         layerData: new Map(),

@@ -1,5 +1,17 @@
 export type Tool = 'select' | 'move' | 'brush'  | 'eraser' | 'shapes' | 'square' | 'pixelate' | 'threshold' | 'ascii';
 
+export type BlendMode =
+  | 'normal'
+  | 'multiply'
+  | 'screen'
+  | 'overlay'
+  | 'darken'
+  | 'lighten'
+  | 'color-dodge'
+  | 'color-burn'
+  | 'hard-light'
+  | 'difference';
+
 export interface Layer {
   id: string;
   name: string;
@@ -7,6 +19,9 @@ export interface Layer {
   isLocked: boolean;
   isActive: boolean;
   opacity: number;
+  blendMode?: BlendMode;
+  isClippingMask?: boolean;
+  isTransparentLocked?: boolean;
 }
 
 export interface DrawingSettings {

@@ -72,9 +72,9 @@ Bienvenue sur la feuille de route (**Roadmap**) de **SketchShop** ! Ce document 
 
 ## 📑 Phase 4 : Calques & Compositing Avancés
 
-- [ ] **Modes de fusion des calques (Blend Modes) :**
+- [x] **Modes de fusion des calques (Blend Modes) :**
   - *Multiply*, *Screen*, *Overlay*, *Darken*, *Lighten*.
-- [ ] **Gestion des calques améliorée :**
+- [x] **Gestion des calques améliorée :**
   - Duplication et fusion de calques (*Merge Down*).
   - Masques de calque ou masques d'écrêtage (*Clipping Mask*).
   - Verrouillage de la transparence (dessiner uniquement sur les pixels existants).

@@ -1,6 +1,6 @@
 import { P5Canvas } from "@p5-wrapper/react";
 import type { Sketch } from "@p5-wrapper/react";
-import type { Tool, Layer, DrawingSettings } from '../../core/types';
+import type { Tool, Layer, DrawingSettings, BlendMode } from '../../core/types';
 import { useEditorStore } from "../../store/useEditorStore";
 import { applyThreshold, applyPixelate, applyASCII } from "./filters";
 import { renderDrawingScene } from '../../core/interpreter';
@@ -20,6 +20,34 @@ interface CanvasProps {
   historyIndex?: number;
   [key: string]: any;
   pendingAiScene?: { scene: DrawingScene; timestamp: number } | null;
+  pendingMergeDown?: { timestamp: number } | null;
+  completeMergeDown?: (upperId: string, lowerId: string, mergedDataUrl: string) => void;
+}
+
+function getCompositeOperation(blendMode?: BlendMode): GlobalCompositeOperation {
+  switch (blendMode) {
+    case 'multiply':
+      return 'multiply';
+    case 'screen':
+      return 'screen';
+    case 'overlay':
+      return 'overlay';
+    case 'darken':
+      return 'darken';
+    case 'lighten':
+      return 'lighten';
+    case 'color-dodge':
+      return 'color-dodge';
+    case 'color-burn':
+      return 'color-burn';
+    case 'hard-light':
+      return 'hard-light';
+    case 'difference':
+      return 'difference';
+    case 'normal':
+    default:
+      return 'source-over';
+  }
 }
 
 const sketch: Sketch<CanvasProps> = (p5) => {
@@ -44,12 +72,26 @@ const sketch: Sketch<CanvasProps> = (p5) => {
   const SPEED_HISTORY_SIZE = 5;
   let lastFilterTimestamp = 0;
   let lastAiTimestamp = 0;
+  let lastMergeDownTimestamp = 0;
   let onUpdateCanvas: ((dataUrl: string) => void) | undefined;
   let onUpdateLayer: ((id: string, dataUrl: string) => void) | undefined;
+  let completeMergeDownProp: ((upperId: string, lowerId: string, mergedDataUrl: string) => void) | undefined;
   let saveHistoryProp: (() => void) | undefined;
   let lastSyncTime = 0;
   let needsSync = false;
   let wasDrawingSession = false;
+
+  let groupBuffer: any = null;
+  let scratchBuffer: any = null;
+
+  function ensureCompositeBuffers() {
+    if (!groupBuffer || groupBuffer.width !== canvasDimensions.width || groupBuffer.height !== canvasDimensions.height) {
+      groupBuffer = p5.createGraphics(canvasDimensions.width, canvasDimensions.height);
+    }
+    if (!scratchBuffer || scratchBuffer.width !== canvasDimensions.width || scratchBuffer.height !== canvasDimensions.height) {
+      scratchBuffer = p5.createGraphics(canvasDimensions.width, canvasDimensions.height);
+    }
+  }
 
   const localMouse = { x: 0, y: 0 };
   let prevLocalMouse = { x: 0, y: 0 };
@@ -84,6 +126,7 @@ const sketch: Sketch<CanvasProps> = (p5) => {
     settingsData = props.settings;
     onUpdateCanvas = props.onUpdateCanvas;
     onUpdateLayer = props.onUpdateLayer;
+    completeMergeDownProp = props.completeMergeDown;
     saveHistoryProp = props.saveHistory;
     canvasBackground = props.canvasBackground;
     
@@ -91,6 +134,8 @@ const sketch: Sketch<CanvasProps> = (p5) => {
         canvasDimensions = props.canvasDimensions;
         p5.resizeCanvas(canvasDimensions.width, canvasDimensions.height);
         layerGraphics.forEach((g) => g.resizeCanvas(canvasDimensions.width, canvasDimensions.height));
+        if (groupBuffer) groupBuffer.resizeCanvas(canvasDimensions.width, canvasDimensions.height);
+        if (scratchBuffer) scratchBuffer.resizeCanvas(canvasDimensions.width, canvasDimensions.height);
     }
 
     // Clean up graphics for deleted layers
@@ -174,6 +219,34 @@ const sketch: Sketch<CanvasProps> = (p5) => {
         }
       }
     }
+
+    if (props.pendingMergeDown && props.pendingMergeDown.timestamp > lastMergeDownTimestamp) {
+      lastMergeDownTimestamp = props.pendingMergeDown.timestamp;
+      const activeIndex = layersData.findIndex(l => l.isActive);
+      if (activeIndex > 0) {
+        const upperLayer = layersData[activeIndex];
+        const lowerLayer = layersData[activeIndex - 1];
+        const gUpper = layerGraphics.get(upperLayer.id);
+        const gLower = layerGraphics.get(lowerLayer.id);
+        if (gLower) {
+          if (gUpper) {
+            gLower.drawingContext.save();
+            gLower.drawingContext.globalAlpha = upperLayer.opacity / 100;
+            gLower.drawingContext.globalCompositeOperation = getCompositeOperation(upperLayer.blendMode);
+            gLower.drawingContext.drawImage(gUpper.canvas, 0, 0);
+            gLower.drawingContext.restore();
+          }
+          const mergedDataUrl = (gLower as any).canvas.toDataURL();
+          layerGraphics.delete(upperLayer.id);
+          lastSyncedDataUrl.delete(upperLayer.id);
+          lastSyncedDataUrl.set(lowerLayer.id, mergedDataUrl);
+
+          completeMergeDownProp?.(upperLayer.id, lowerLayer.id, mergedDataUrl);
+          needsSync = true;
+          syncToStore();
+        }
+      }
+    }
   };
 
   function applyFilterEffect(g: any, type: string) {
@@ -226,20 +299,94 @@ const sketch: Sketch<CanvasProps> = (p5) => {
     }
     updateCursor();
 
-    layersData.forEach(layer => {
-      const g = layerGraphics.get(layer.id);
-      if (g && layer.isVisible) {
-        p5.tint(255, (layer.opacity / 100) * 255);
-        p5.image(g, 0, 0);
+    ensureCompositeBuffers();
+
+    let i = 0;
+    while (i < layersData.length) {
+      const baseLayer = layersData[i];
+      const baseG = layerGraphics.get(baseLayer.id);
+
+      // Check if there are clipping masks directly above this layer
+      let nextIndex = i + 1;
+      while (nextIndex < layersData.length && layersData[nextIndex].isClippingMask) {
+        nextIndex++;
       }
-    });
+
+      const hasClipping = nextIndex > i + 1;
+
+      const mainCtx = p5.drawingContext as CanvasRenderingContext2D;
+
+      if (!hasClipping) {
+        // Standalone layer (standard rendering with blend mode and opacity)
+        if (baseG && baseLayer.isVisible) {
+          mainCtx.save();
+          mainCtx.globalAlpha = baseLayer.opacity / 100;
+          mainCtx.globalCompositeOperation = getCompositeOperation(baseLayer.blendMode);
+          mainCtx.drawImage(baseG.canvas, 0, 0);
+          mainCtx.restore();
+        }
+        i++;
+      } else {
+        // Group with clipping mask(s)
+        if (baseG && baseLayer.isVisible) {
+          groupBuffer.clear();
+          groupBuffer.drawingContext.save();
+          groupBuffer.drawingContext.globalAlpha = 1.0;
+          groupBuffer.drawingContext.globalCompositeOperation = 'source-over';
+          groupBuffer.drawingContext.drawImage(baseG.canvas, 0, 0);
+          groupBuffer.drawingContext.restore();
+
+          // Composite each clipped layer onto groupBuffer
+          for (let k = i + 1; k < nextIndex; k++) {
+            const clipLayer = layersData[k];
+            const clipG = layerGraphics.get(clipLayer.id);
+            if (clipG && clipLayer.isVisible) {
+              const clipOp = getCompositeOperation(clipLayer.blendMode);
+              if (clipOp === 'source-over') {
+                groupBuffer.drawingContext.save();
+                groupBuffer.drawingContext.globalAlpha = clipLayer.opacity / 100;
+                groupBuffer.drawingContext.globalCompositeOperation = 'source-atop';
+                groupBuffer.drawingContext.drawImage(clipG.canvas, 0, 0);
+                groupBuffer.drawingContext.restore();
+              } else {
+                // Blend mode combined with clipping constraint
+                scratchBuffer.clear();
+                scratchBuffer.drawingContext.save();
+                scratchBuffer.drawingContext.globalAlpha = 1.0;
+                scratchBuffer.drawingContext.globalCompositeOperation = 'source-over';
+                scratchBuffer.drawingContext.drawImage(groupBuffer.canvas, 0, 0);
+
+                scratchBuffer.drawingContext.globalAlpha = clipLayer.opacity / 100;
+                scratchBuffer.drawingContext.globalCompositeOperation = clipOp;
+                scratchBuffer.drawingContext.drawImage(clipG.canvas, 0, 0);
+
+                scratchBuffer.drawingContext.globalCompositeOperation = 'destination-in';
+                scratchBuffer.drawingContext.drawImage(groupBuffer.canvas, 0, 0);
+                scratchBuffer.drawingContext.restore();
+
+                groupBuffer.clear();
+                groupBuffer.drawingContext.drawImage(scratchBuffer.canvas, 0, 0);
+              }
+            }
+          }
+
+          // Composite the grouped buffer onto the main canvas with base layer's blend mode and opacity
+          mainCtx.save();
+          mainCtx.globalAlpha = baseLayer.opacity / 100;
+          mainCtx.globalCompositeOperation = getCompositeOperation(baseLayer.blendMode);
+          mainCtx.drawImage(groupBuffer.canvas, 0, 0);
+          mainCtx.restore();
+        }
+        i = nextIndex;
+      }
+    }
 
     if (p5.mouseIsPressed && isMouseOverCanvas()) {
       const activeLayer = layersData.find(l => l.isActive);
       if (activeLayer && !activeLayer.isLocked) {
         const g = layerGraphics.get(activeLayer.id);
         if (g) {
-          handleDrawing(g);
+          handleDrawing(g, activeLayer);
           needsSync = true;
           wasDrawingSession = true;
         }
@@ -299,6 +446,10 @@ const sketch: Sketch<CanvasProps> = (p5) => {
       if (activeLayer && !activeLayer.isLocked) {
         const g = layerGraphics.get(activeLayer.id);
         if (g) {
+          if (activeLayer.isTransparentLocked) {
+            g.drawingContext.save();
+            g.drawingContext.globalCompositeOperation = 'source-atop';
+          }
           g.push();
           g.fill(settingsData.color);
           g.noStroke();
@@ -309,6 +460,9 @@ const sketch: Sketch<CanvasProps> = (p5) => {
             localMouse.y - rectangleStart.y
           );
           g.pop();
+          if (activeLayer.isTransparentLocked) {
+            g.drawingContext.restore();
+          }
           needsSync = true;
         }
       }
@@ -339,7 +493,12 @@ const sketch: Sketch<CanvasProps> = (p5) => {
     }
   }
 
-  function handleDrawing(g: any) {
+  function handleDrawing(g: any, activeLayer: Layer) {
+    if (activeLayer.isTransparentLocked) {
+      g.drawingContext.save();
+      g.drawingContext.globalCompositeOperation = 'source-atop';
+    }
+
     if (activeTool === 'brush') {
       const c = p5.color(settingsData.color);
       c.setAlpha((settingsData.opacity / 100) * 255);
@@ -353,16 +512,23 @@ const sketch: Sketch<CanvasProps> = (p5) => {
       g.strokeWeight(sw);
       g.line(prevLocalMouse.x, prevLocalMouse.y, localMouse.x, localMouse.y);
     } else if (activeTool === 'eraser') {
-      g.erase();
-      g.strokeWeight(settingsData.brushSize);
-      g.line(prevLocalMouse.x, prevLocalMouse.y, localMouse.x, localMouse.y);
-      g.noErase();
+      // Transparency lock prevents erasing or decreasing pixel alpha
+      if (!activeLayer.isTransparentLocked) {
+        g.erase();
+        g.strokeWeight(settingsData.brushSize);
+        g.line(prevLocalMouse.x, prevLocalMouse.y, localMouse.x, localMouse.y);
+        g.noErase();
+      }
     } else if (activeTool === 'shapes') {
       g.noStroke();
       const c = p5.color(settingsData.color);
       c.setAlpha((settingsData.opacity / 100) * 50);
       g.fill(c);
       g.ellipse(localMouse.x, localMouse.y, settingsData.brushSize * 2, settingsData.brushSize * 2);
+    }
+
+    if (activeLayer.isTransparentLocked) {
+      g.drawingContext.restore();
     }
   }
 
@@ -397,12 +563,22 @@ const sketch: Sketch<CanvasProps> = (p5) => {
 };
 
 export function Canvas() {
-  const { activeTool, layers, settings, applyFilter, canvasDimensions, canvasBackground, setPreviewUrl, layerData, setLayerData, saveHistory, historyIndex, pendingAiScene  } = useEditorStore();
-  
-  // We don't have direct access to the p5 instance here, 
-  // but the sketch itself handles periodic syncing.
-  // To ensure a sync on unmount, we'd need to expose a way from the sketch.
-  // For now, the 500ms periodic sync + sync on mouseRelease should be enough.
+  const { 
+    activeTool, 
+    layers, 
+    settings, 
+    applyFilter, 
+    canvasDimensions, 
+    canvasBackground, 
+    setPreviewUrl, 
+    layerData, 
+    setLayerData, 
+    saveHistory, 
+    historyIndex, 
+    pendingAiScene,
+    pendingMergeDown,
+    completeMergeDown
+  } = useEditorStore();
 
   return (
     <P5Canvas 
@@ -412,6 +588,8 @@ export function Canvas() {
       settings={settings} 
       applyFilter={applyFilter} 
       pendingAiScene={pendingAiScene}
+      pendingMergeDown={pendingMergeDown}
+      completeMergeDown={completeMergeDown}
       canvasDimensions={canvasDimensions}
       canvasBackground={canvasBackground}
       layerData={layerData}
