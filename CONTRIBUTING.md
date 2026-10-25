@@ -18,7 +18,7 @@ Bienvenue sur la feuille de route (**Roadmap**) de **SketchShop** ! Ce document 
 
 > *Objectif : Passer d'un dessin purement "pixel figé" à une vraie manipulation d'objets éditables.*
 
-- [ ] **Boîte de délimitation (Bounding Box) & Sélection :**
+- [x] **Boîte de délimitation (Bounding Box) & Sélection :**
   - Sélectionner un objet / forme au clic ou par zone rectangulaire (lasso / cadre de sélection).
   - Affichage d'un rectangle de sélection avec 8 poignées d'ancrage (coins et bords).
 - [ ] **Transformations interactives :**
@@ -109,4 +109,3 @@ Bienvenue sur la feuille de route (**Roadmap**) de **SketchShop** ! Ce document 
 ---
 
 > 💡 *Cette roadmap est un document vivant. N'hésite pas à cocher les cases au fur et à mesure des Pull Requests ou à ajouter de nouvelles idées inspirées par vos utilisateurs !*
-
