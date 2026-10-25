@@ -1,6 +1,6 @@
 export type Tool = 'select' | 'move' | 'brush'  | 'eraser' | 'shapes' | 'square' | 'pixelate' | 'threshold' | 'ascii';
 
-export type CanvasObjectType = 'rect' | 'circle' | 'line' | 'triangle' | 'text';
+export type CanvasObjectType = 'rect' | 'circle' | 'line' | 'triangle' | 'text' | 'image';
 
 export interface CanvasObject {
   id: string;
@@ -18,6 +18,7 @@ export interface CanvasObject {
   borderRadius?: number;
   text?: string;
   fontSize?: number;
+  imageUrl?: string;
   points?: { x: number; y: number }[];
 }
 
