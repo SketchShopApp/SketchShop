@@ -1,11 +1,12 @@
 import { create } from 'zustand';
-import type { Tool, Layer, DrawingSettings, DrawingScene, BlendMode } from '../core/types';
+import type { Tool, Layer, DrawingSettings, DrawingScene, BlendMode, CanvasObject } from '../core/types';
 
 export interface HistorySnapshot {
   layers: Layer[];
   layerData: Map<string, string>;
   canvasDimensions: { width: number; height: number };
   canvasBackground: string;
+  objects: CanvasObject[];
 }
 
 interface EditorState {
@@ -45,6 +46,20 @@ interface EditorState {
   completeMergeDown: (upperId: string, lowerId: string, mergedDataUrl: string) => void;
   resetEditor: (params: { dimensions: { width: number; height: number }, background?: string }) => void;
 
+  // Objects & Selection State
+  objects: CanvasObject[];
+  selectedObjectIds: string[];
+  setObjects: (objects: CanvasObject[]) => void;
+  addObject: (object: CanvasObject, autoSelect?: boolean) => void;
+  updateObject: (id: string, updates: Partial<CanvasObject>) => void;
+  updateObjects: (updates: { id: string; changes: Partial<CanvasObject> }[]) => void;
+  deleteObject: (id: string) => void;
+  deleteSelectedObjects: () => void;
+  setSelectedObjectIds: (ids: string[]) => void;
+  selectObject: (id: string, multiSelect?: boolean) => void;
+  selectObjects: (ids: string[]) => void;
+  clearSelection: () => void;
+
   // Filter State
   applyFilter: { type: 'threshold' | 'pixelate' | 'ascii', timestamp: number } | undefined;
   triggerFilter: (type: 'threshold' | 'pixelate' | 'ascii') => void;
@@ -76,11 +91,13 @@ export const useEditorStore = create<EditorState>((set, get) => {
     layerData: Map<string, string>;
     canvasDimensions: { width: number; height: number };
     canvasBackground: string;
+    objects: CanvasObject[];
   }): HistorySnapshot => ({
     layers: state.layers.map(l => ({ ...l })),
     layerData: new Map(state.layerData),
     canvasDimensions: { ...state.canvasDimensions },
     canvasBackground: state.canvasBackground,
+    objects: state.objects.map(o => ({ ...o })),
   });
 
   const MAX_HISTORY_SIZE = 30;
@@ -154,7 +171,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
     // Layers State
     layers: initialLayers,
-    setLayers: (layers) => set({ layers }), // Reordering updates state, history saved on dragEnd in SideBarLayer
+    setLayers: (layers) => set({ layers }),
     toggleVisibility: (id) => {
       set((state) => ({
         layers: state.layers.map(l => l.id === id ? { ...l, isVisible: !l.isVisible } : l)
@@ -168,7 +185,11 @@ export const useEditorStore = create<EditorState>((set, get) => {
       saveHistory();
     },
     setActiveLayer: (id) => set((state) => ({
-      layers: state.layers.map(l => ({ ...l, isActive: l.id === id }))
+      layers: state.layers.map(l => ({ ...l, isActive: l.id === id })),
+      selectedObjectIds: state.selectedObjectIds.filter(selectedId => {
+        const obj = state.objects.find(o => o.id === selectedId);
+        return obj && obj.layerId === id;
+      })
     })),
     addLayer: () => {
       set((state) => {
@@ -195,11 +216,20 @@ export const useEditorStore = create<EditorState>((set, get) => {
         const activeIndex = state.layers.findIndex(l => l.isActive);
         if (activeIndex === -1) return state;
 
+        const deletedLayerId = state.layers[activeIndex].id;
         const newLayers = state.layers.filter((_, i) => i !== activeIndex);
         const nextActiveIndex = Math.max(0, activeIndex - 1);
         newLayers[nextActiveIndex].isActive = true;
         
-        return { layers: newLayers };
+        const newObjects = state.objects.filter(o => o.layerId !== deletedLayerId);
+        const validIds = new Set(newObjects.map(o => o.id));
+        const newSelected = state.selectedObjectIds.filter(id => validIds.has(id));
+
+        return { 
+          layers: newLayers,
+          objects: newObjects,
+          selectedObjectIds: newSelected,
+        };
       });
       saveHistory();
     },
@@ -217,7 +247,6 @@ export const useEditorStore = create<EditorState>((set, get) => {
         };
 
         const newLayers = state.layers.map(l => ({ ...l, isActive: false }));
-        // Place duplicate directly above the duplicated layer
         newLayers.splice(targetIndex + 1, 0, newLayer);
 
         const newLayerData = new Map(state.layerData);
@@ -226,9 +255,19 @@ export const useEditorStore = create<EditorState>((set, get) => {
           newLayerData.set(newId, srcData);
         }
 
+        // Duplicate objects of the layer as well
+        const duplicatedObjects: CanvasObject[] = state.objects
+          .filter(o => o.layerId === source.id)
+          .map(o => ({
+            ...o,
+            id: Math.random().toString(36).substring(2, 9),
+            layerId: newId,
+          }));
+
         return {
           layers: newLayers,
           layerData: newLayerData,
+          objects: [...state.objects, ...duplicatedObjects],
         };
       });
       saveHistory();
@@ -260,7 +299,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     toggleLayerClippingMask: (id) => {
       set((state) => {
         const index = state.layers.findIndex(l => l.id === id);
-        if (index <= 0) return state; // Bottom layer cannot be clipped
+        if (index <= 0) return state;
         return {
           layers: state.layers.map((l, i) =>
             i === index ? { ...l, isClippingMask: !l.isClippingMask } : l
@@ -281,7 +320,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     triggerMergeDown: () => {
       const state = get();
       const activeIndex = state.layers.findIndex(l => l.isActive);
-      if (activeIndex <= 0) return; // Cannot merge down bottom layer
+      if (activeIndex <= 0) return;
       set({ pendingMergeDown: { timestamp: Date.now() } });
     },
     completeMergeDown: (upperId, lowerId, mergedDataUrl) => {
@@ -294,9 +333,15 @@ export const useEditorStore = create<EditorState>((set, get) => {
         newLayerData.delete(upperId);
         newLayerData.set(lowerId, mergedDataUrl);
 
+        // Move upper layer objects to lower layer
+        const updatedObjects = state.objects.map(o =>
+          o.layerId === upperId ? { ...o, layerId: lowerId } : o
+        );
+
         return {
           layers: newLayers,
           layerData: newLayerData,
+          objects: updatedObjects,
           pendingMergeDown: null,
         };
       });
@@ -322,6 +367,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
         layerData: newLayerData,
         canvasDimensions: dimensions,
         canvasBackground: background,
+        objects: [],
       });
 
       set({
@@ -329,6 +375,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
         canvasBackground: background,
         layers: newLayers,
         layerData: newLayerData,
+        objects: [],
+        selectedObjectIds: [],
         activeTool: 'brush',
         applyFilter: undefined,
         pendingMergeDown: null,
@@ -336,6 +384,73 @@ export const useEditorStore = create<EditorState>((set, get) => {
         historyIndex: 0,
       });
     },
+
+    // Objects & Selection State
+    objects: [],
+    selectedObjectIds: [],
+    setObjects: (objects) => {
+      set({ objects });
+      saveHistory();
+    },
+    addObject: (object, autoSelect = true) => {
+      set((state) => ({
+        objects: [...state.objects, object],
+        selectedObjectIds: autoSelect ? [object.id] : state.selectedObjectIds,
+      }));
+      saveHistory();
+    },
+    updateObject: (id, updates) => {
+      set((state) => ({
+        objects: state.objects.map(obj => obj.id === id ? { ...obj, ...updates } : obj)
+      }));
+      saveHistory();
+    },
+    updateObjects: (updates) => {
+      set((state) => {
+        const updateMap = new Map(updates.map(u => [u.id, u.changes]));
+        return {
+          objects: state.objects.map(obj => {
+            const ch = updateMap.get(obj.id);
+            return ch ? { ...obj, ...ch } : obj;
+          })
+        };
+      });
+      saveHistory();
+    },
+    deleteObject: (id) => {
+      set((state) => ({
+        objects: state.objects.filter(obj => obj.id !== id),
+        selectedObjectIds: state.selectedObjectIds.filter(selectedId => selectedId !== id),
+      }));
+      saveHistory();
+    },
+    deleteSelectedObjects: () => {
+      set((state) => {
+        const toDelete = new Set(state.selectedObjectIds);
+        if (toDelete.size === 0) return state;
+        return {
+          objects: state.objects.filter(obj => !toDelete.has(obj.id)),
+          selectedObjectIds: [],
+        };
+      });
+      saveHistory();
+    },
+    setSelectedObjectIds: (ids) => set({ selectedObjectIds: ids }),
+    selectObject: (id, multiSelect = false) => {
+      set((state) => {
+        if (multiSelect) {
+          const already = state.selectedObjectIds.includes(id);
+          return {
+            selectedObjectIds: already
+              ? state.selectedObjectIds.filter(item => item !== id)
+              : [...state.selectedObjectIds, id]
+          };
+        }
+        return { selectedObjectIds: [id] };
+      });
+    },
+    selectObjects: (ids) => set({ selectedObjectIds: ids }),
+    clearSelection: () => set({ selectedObjectIds: [] }),
 
     // AI Scene State
     isAiChatOpen: false,
@@ -379,6 +494,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
         layerData: new Map(),
         canvasDimensions: { width: 1200, height: 800 },
         canvasBackground: '#ffffff',
+        objects: [],
       }
     ],
     historyIndex: 0,
@@ -387,24 +503,32 @@ export const useEditorStore = create<EditorState>((set, get) => {
       if (state.historyIndex <= 0) return state;
       const nextIndex = state.historyIndex - 1;
       const snapshot = state.history[nextIndex];
+      const restoredObjects = (snapshot.objects || []).map(o => ({ ...o }));
+      const objectIds = new Set(restoredObjects.map(o => o.id));
       return {
         historyIndex: nextIndex,
         layers: snapshot.layers.map(l => ({ ...l })),
         layerData: new Map(snapshot.layerData),
         canvasDimensions: { ...snapshot.canvasDimensions },
         canvasBackground: snapshot.canvasBackground,
+        objects: restoredObjects,
+        selectedObjectIds: state.selectedObjectIds.filter(id => objectIds.has(id)),
       };
     }),
     redo: () => set((state) => {
       if (state.historyIndex >= state.history.length - 1) return state;
       const nextIndex = state.historyIndex + 1;
       const snapshot = state.history[nextIndex];
+      const restoredObjects = (snapshot.objects || []).map(o => ({ ...o }));
+      const objectIds = new Set(restoredObjects.map(o => o.id));
       return {
         historyIndex: nextIndex,
         layers: snapshot.layers.map(l => ({ ...l })),
         layerData: new Map(snapshot.layerData),
         canvasDimensions: { ...snapshot.canvasDimensions },
         canvasBackground: snapshot.canvasBackground,
+        objects: restoredObjects,
+        selectedObjectIds: state.selectedObjectIds.filter(id => objectIds.has(id)),
       };
     }),
   };
