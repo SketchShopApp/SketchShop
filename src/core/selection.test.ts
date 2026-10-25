@@ -260,3 +260,41 @@ test('resizeBoundsWithHandle correctly resizes in negative dx and dy directions'
   assert.equal(transformed[0].changes.width, 130);
   assert.equal(transformed[0].changes.height, 140);
 });
+
+test('image objects support bounds calculation, hit-testing and transformation', () => {
+  const imgObj: CanvasObject = {
+    id: 'img-1',
+    layerId: 'layer1',
+    type: 'image',
+    imageUrl: 'data:image/png;base64,...',
+    x: 200,
+    y: 150,
+    width: 400,
+    height: 300,
+    rotation: 0,
+    opacity: 100,
+  };
+
+  const bounds = computeObjectBounds(imgObj);
+  assert.deepEqual(bounds, {
+    minX: 200,
+    minY: 150,
+    maxX: 600,
+    maxY: 450,
+    width: 400,
+    height: 300,
+  });
+
+  // Hit test inside image
+  assert.equal(isPointInsideObject(300, 250, imgObj), true);
+  // Hit test outside image
+  assert.equal(isPointInsideObject(50, 50, imgObj), false);
+
+  // Resize image from bottom-right handle
+  const resized = resizeBoundsWithHandle(bounds, 'br', 100, 50, true);
+  assert.equal(resized.minX, 200);
+  assert.equal(resized.minY, 150);
+  assert.ok(resized.width > 400);
+  assert.ok(resized.height > 300);
+});
+

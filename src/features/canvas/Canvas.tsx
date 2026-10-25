@@ -103,6 +103,7 @@ const sketch: Sketch<CanvasProps> = (p5) => {
 
   const layerGraphics = new Map<string, any>();
   const lastSyncedDataUrl = new Map<string, string>();
+  const imageCache = new Map<string, any>();
   
   // États d'interaction
   let shapeCreationStart: { x: number; y: number } | null = null;
@@ -170,6 +171,17 @@ const sketch: Sketch<CanvasProps> = (p5) => {
       p5.winMouseY >= rect.top &&
       p5.winMouseY <= rect.bottom
     );
+  }
+
+  function getOrLoadImage(url: string): any {
+    if (imageCache.has(url)) {
+      return imageCache.get(url);
+    }
+    p5.loadImage(url, (img) => {
+      imageCache.set(url, img);
+      needsSync = true;
+    });
+    return null;
   }
 
   p5.updateWithProps = (props) => {
@@ -336,24 +348,50 @@ const sketch: Sketch<CanvasProps> = (p5) => {
     canvas.drop(handleFileDrop);
   };
 
+  // Drag & drop d'images -> Transformées en objets manipulables avec boîte de délimitation
   function handleFileDrop(file: any) {
     if (file.type === 'image') {
       p5.loadImage(file.data, (img) => {
         const activeLayer = layersData.find(l => l.isActive);
         if (activeLayer) {
-          const g = layerGraphics.get(activeLayer.id);
-          if (g) {
-            g.image(img, 0, 0);
-            needsSync = true;
-            syncToStore();
-            saveHistoryProp?.();
+          let w = img.width;
+          let h = img.height;
+          const maxW = canvasDimensions.width * 0.7;
+          const maxH = canvasDimensions.height * 0.7;
+          if (w > maxW || h > maxH) {
+            const ratio = Math.min(maxW / w, maxH / h);
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
           }
+
+          const dropX = Math.round((canvasDimensions.width - w) / 2);
+          const dropY = Math.round((canvasDimensions.height - h) / 2);
+
+          const newObj: CanvasObject = {
+            id: Math.random().toString(36).substring(2, 9),
+            layerId: activeLayer.id,
+            type: 'image',
+            imageUrl: file.data,
+            x: dropX,
+            y: dropY,
+            width: w,
+            height: h,
+            rotation: 0,
+            opacity: 100,
+          };
+
+          imageCache.set(file.data, img);
+          onAddObject?.(newObj, true);
+          useEditorStore.getState().setActiveTool('select');
+          needsSync = true;
+          syncToStore();
+          saveHistoryProp?.();
         }
       });
     }
   }
 
-  // Rendu individuel d'un objet canvas vectoriel
+  // Rendu individuel d'un objet canvas (formes ou image)
   function renderCanvasObject(target: any, obj: CanvasObject, layerOpacity: number) {
     target.push();
     const effOpacity = ((obj.opacity ?? 100) / 100) * (layerOpacity / 100);
@@ -365,6 +403,19 @@ const sketch: Sketch<CanvasProps> = (p5) => {
       target.translate(cx, cy);
       target.rotate(p5.radians(obj.rotation));
       target.translate(-cx, -cy);
+    }
+
+    if (obj.type === 'image') {
+      if (obj.imageUrl) {
+        const img = getOrLoadImage(obj.imageUrl);
+        if (img) {
+          target.tint(255, effOpacity * 255);
+          target.image(img, obj.x, obj.y, obj.width, obj.height);
+          target.noTint();
+        }
+      }
+      target.pop();
+      return;
     }
 
     // Traitement du Fill
@@ -857,7 +908,6 @@ const sketch: Sketch<CanvasProps> = (p5) => {
       return;
     }
 
-    // Calcul précis avec anchor fixe, supportant parfaitement les deltas négatifs (-x, -y)
     const newBox = resizeBoundsWithHandle(origBox, handle, dx, dy, isShift);
     const updates = transformObjectsWithNewBounds(initialObjectsBeforeTransform, origBox, newBox);
     const updateMap = new Map(updates.map(u => [u.id, u.changes]));
@@ -1141,7 +1191,7 @@ export function Canvas() {
 
   const canvasContainerRef = useRef<HTMLDivElement>(null);
 
-  // Raccourcis clavier pour la suppression et l'échappement de sélection
+  // Raccourcis clavier pour la suppression, l'échappement et le collage d'images (Ctrl+V)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeEl = document.activeElement;
@@ -1167,8 +1217,71 @@ export function Canvas() {
       }
     };
 
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.indexOf('image') !== -1) {
+          e.preventDefault();
+          const blob = item.getAsFile();
+          if (!blob) continue;
+
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const dataUrl = event.target?.result as string;
+            if (!dataUrl) return;
+
+            const img = new Image();
+            img.onload = () => {
+              const state = useEditorStore.getState();
+              const activeLayer = state.layers.find(l => l.isActive);
+              if (!activeLayer) return;
+
+              let w = img.width;
+              let h = img.height;
+              const maxW = state.canvasDimensions.width * 0.7;
+              const maxH = state.canvasDimensions.height * 0.7;
+              if (w > maxW || h > maxH) {
+                const ratio = Math.min(maxW / w, maxH / h);
+                w = Math.round(w * ratio);
+                h = Math.round(h * ratio);
+              }
+
+              const dropX = Math.round((state.canvasDimensions.width - w) / 2);
+              const dropY = Math.round((state.canvasDimensions.height - h) / 2);
+
+              const newObj: CanvasObject = {
+                id: Math.random().toString(36).substring(2, 9),
+                layerId: activeLayer.id,
+                type: 'image',
+                imageUrl: dataUrl,
+                x: dropX,
+                y: dropY,
+                width: w,
+                height: h,
+                rotation: 0,
+                opacity: 100,
+              };
+
+              state.addObject(newObj, true);
+              state.setActiveTool('select');
+            };
+            img.src = dataUrl;
+          };
+          reader.readAsDataURL(blob);
+          break;
+        }
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('paste', handlePaste);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('paste', handlePaste);
+    };
   }, [selectedObjectIds, deleteSelectedObjects, clearSelection]);
 
   return (
@@ -1204,4 +1317,3 @@ export function Canvas() {
     </div>
   );
 }
-

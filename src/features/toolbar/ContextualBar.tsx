@@ -36,7 +36,11 @@ export default function ContextualBar() {
                 {selectedObjects.length}
               </span>
               <span className="text-gray-400">
-                {selectedObjects.length > 1 ? 'objets sélectionnés' : 'objet sélectionné'}
+                {firstSelected?.type === 'image' && selectedObjects.length === 1 
+                  ? 'image sélectionnée' 
+                  : selectedObjects.length > 1 
+                    ? 'objets sélectionnés' 
+                    : 'objet sélectionné'}
               </span>
             </div>
 
@@ -47,22 +51,26 @@ export default function ContextualBar() {
                   <span>Y: {Math.round(firstSelected.y)}</span>
                   <span>L: {Math.round(firstSelected.width)}</span>
                   <span>H: {Math.round(firstSelected.height)}</span>
-                  {firstSelected.rotation ? <span>{Math.round(firstSelected.rotation)}°</span> : null}
+                  {typeof firstSelected.rotation === 'number' && firstSelected.rotation !== 0 ? (
+                    <span>{Math.round(firstSelected.rotation)}°</span>
+                  ) : null}
                 </div>
 
-                {/* Couleur de remplissage */}
-                <div className="flex items-center gap-2">
-                  <label className="text-[10px] text-gray-400 uppercase font-bold">Couleur</label>
-                  <input
-                    type="color"
-                    value={firstSelected.fill || '#000000'}
-                    onChange={(e) => updateObject(firstSelected.id, { fill: e.target.value })}
-                    className="w-5 h-5 bg-transparent border-none appearance-none cursor-pointer"
-                    title="Changer la couleur"
-                  />
-                </div>
+                {/* Couleur de remplissage (uniquement pour formes non-image) */}
+                {firstSelected.type !== 'image' && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] text-gray-400 uppercase font-bold">Couleur</label>
+                    <input
+                      type="color"
+                      value={firstSelected.fill || '#000000'}
+                      onChange={(e) => updateObject(firstSelected.id, { fill: e.target.value })}
+                      className="w-5 h-5 bg-transparent border-none appearance-none cursor-pointer"
+                      title="Changer la couleur"
+                    />
+                  </div>
+                )}
 
-                {/* Opacité de l'objet */}
+                {/* Opacité de l'objet / image */}
                 <div className="flex flex-col gap-0.5 w-20">
                   <div className="flex justify-between text-[9px] text-gray-400 uppercase font-bold">
                     <span>Opacité</span>

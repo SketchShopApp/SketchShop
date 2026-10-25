@@ -24,12 +24,12 @@ test('useEditorStore manages objects and selection correctly', () => {
   const obj2: CanvasObject = {
     id: 'obj-2',
     layerId: '1',
-    type: 'circle',
+    type: 'image',
+    imageUrl: 'data:image/png;base64,abc',
     x: 150,
     y: 150,
     width: 60,
     height: 60,
-    fill: '#00ff00',
   };
 
   // Add object with auto-select
