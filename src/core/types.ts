@@ -19,6 +19,8 @@ export interface CanvasObject {
   text?: string;
   fontSize?: number;
   imageUrl?: string;
+  flipX?: boolean;
+  flipY?: boolean;
   points?: { x: number; y: number }[];
 }
 

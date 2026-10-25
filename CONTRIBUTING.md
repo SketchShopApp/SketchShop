@@ -21,11 +21,11 @@ Bienvenue sur la feuille de route (**Roadmap**) de **SketchShop** ! Ce document 
 - [x] **Boîte de délimitation (Bounding Box) & Sélection :**
   - Sélectionner un objet / forme au clic ou par zone rectangulaire (lasso / cadre de sélection).
   - Affichage d'un rectangle de sélection avec 8 poignées d'ancrage (coins et bords).
-- [ ] **Transformations interactives :**
+- [x] **Transformations interactives :**
   - **Déplacement (Move / Drag & Drop)** : Glisser-déposer un objet à n'importe quel endroit du canvas.
   - **Redimensionnement (Scale / Resize)** : Agrandir ou réduire proportionnellement (`Shift`) ou librement.
   - **Rotation** : Poignée de rotation pour pivoter les formes avec angle en degrés (magnétisme à 15°/45° avec `Shift`).
-- [ ] **Opérations sur les objets :**
+- [x] **Opérations sur les objets :**
   - Duplication rapide (`Ctrl + D` ou `Alt + Drag`).
   - Suppression (`Suppr` / `Backspace`).
   - Alignements automatiques (centrer horizontalement/verticalement, aligner à gauche/droite).

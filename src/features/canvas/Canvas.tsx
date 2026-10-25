@@ -405,6 +405,15 @@ const sketch: Sketch<CanvasProps> = (p5) => {
       target.translate(-cx, -cy);
     }
 
+    // Miroir horizontal / vertical si défini (Flip X / Flip Y)
+    if (obj.flipX || obj.flipY) {
+      const cx = obj.x + obj.width / 2;
+      const cy = obj.y + obj.height / 2;
+      target.translate(cx, cy);
+      target.scale(obj.flipX ? -1 : 1, obj.flipY ? -1 : 1);
+      target.translate(-cx, -cy);
+    }
+
     if (obj.type === 'image') {
       if (obj.imageUrl) {
         const img = getOrLoadImage(obj.imageUrl);
@@ -811,12 +820,30 @@ const sketch: Sketch<CanvasProps> = (p5) => {
           onSetActiveLayer?.(clickedObject.layerId);
         }
 
-        // Préparation du déplacement par glisser-déposer
-        isDraggingObjects = true;
-        dragStartPos = { x: localMouse.x, y: localMouse.y };
+        // Préparation du déplacement par glisser-déposer (avec support Alt + Drag pour duplication)
+        const isAlt = p5.keyIsDown(p5.ALT);
         const activeGroup = isAlreadySelected && !isShift
           ? selectedObjects
           : [clickedObject];
+
+        if (isAlt) {
+          const clones = activeGroup.map(o => ({
+            ...o,
+            id: Math.random().toString(36).substring(2, 9),
+          }));
+          objectsData = [...objectsData, ...clones];
+          if (onSetObjects) {
+            onSetObjects(objectsData);
+          }
+          onSelectObjects?.(clones.map(c => c.id));
+          isDraggingObjects = true;
+          dragStartPos = { x: localMouse.x, y: localMouse.y };
+          initialObjectPositions = new Map(clones.map(c => [c.id, { x: c.x, y: c.y }]));
+          return;
+        }
+
+        isDraggingObjects = true;
+        dragStartPos = { x: localMouse.x, y: localMouse.y };
         initialObjectPositions = new Map(activeGroup.map(o => [o.id, { x: o.x, y: o.y }]));
         return;
       }
@@ -824,6 +851,23 @@ const sketch: Sketch<CanvasProps> = (p5) => {
       // 3. Clic dans la boîte de délimitation déjà sélectionnée
       if (bounds && localMouse.x >= bounds.minX && localMouse.x <= bounds.maxX &&
           localMouse.y >= bounds.minY && localMouse.y <= bounds.maxY) {
+        const isAlt = p5.keyIsDown(p5.ALT);
+        if (isAlt) {
+          const clones = selectedObjects.map(o => ({
+            ...o,
+            id: Math.random().toString(36).substring(2, 9),
+          }));
+          objectsData = [...objectsData, ...clones];
+          if (onSetObjects) {
+            onSetObjects(objectsData);
+          }
+          onSelectObjects?.(clones.map(c => c.id));
+          isDraggingObjects = true;
+          dragStartPos = { x: localMouse.x, y: localMouse.y };
+          initialObjectPositions = new Map(clones.map(c => [c.id, { x: c.x, y: c.y }]));
+          return;
+        }
+
         isDraggingObjects = true;
         dragStartPos = { x: localMouse.x, y: localMouse.y };
         initialObjectPositions = new Map(selectedObjects.map(o => [o.id, { x: o.x, y: o.y }]));

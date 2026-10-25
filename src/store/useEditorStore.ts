@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import type { Tool, Layer, DrawingSettings, DrawingScene, BlendMode, CanvasObject } from '../core/types';
+import type { Tool, Layer, DrawingSettings, DrawingScene, BlendMode, CanvasObject, BoundingBox } from '../core/types';
+import { computeCombinedBounds } from '../core/selection.ts';
 
 export interface HistorySnapshot {
   layers: Layer[];
@@ -55,6 +56,14 @@ interface EditorState {
   updateObjects: (updates: { id: string; changes: Partial<CanvasObject> }[]) => void;
   deleteObject: (id: string) => void;
   deleteSelectedObjects: () => void;
+  duplicateSelectedObjects: () => void;
+  bringToFront: () => void;
+  sendToBack: () => void;
+  bringForward: () => void;
+  sendBackward: () => void;
+  flipHorizontal: () => void;
+  flipVertical: () => void;
+  alignSelectedObjects: (alignment: 'left' | 'center-h' | 'right' | 'top' | 'center-v' | 'bottom') => void;
   setSelectedObjectIds: (ids: string[]) => void;
   selectObject: (id: string, multiSelect?: boolean) => void;
   selectObjects: (ids: string[]) => void;
@@ -431,6 +440,227 @@ export const useEditorStore = create<EditorState>((set, get) => {
         return {
           objects: state.objects.filter(obj => !toDelete.has(obj.id)),
           selectedObjectIds: [],
+        };
+      });
+      saveHistory();
+    },
+    duplicateSelectedObjects: () => {
+      set((state) => {
+        if (state.selectedObjectIds.length === 0) return state;
+        const selected = state.objects.filter(o => state.selectedObjectIds.includes(o.id));
+        const newObjects = selected.map(o => ({
+          ...o,
+          id: Math.random().toString(36).substring(2, 9),
+          x: o.x + 20,
+          y: o.y + 20,
+        }));
+        return {
+          objects: [...state.objects, ...newObjects],
+          selectedObjectIds: newObjects.map(o => o.id),
+        };
+      });
+      saveHistory();
+    },
+    bringToFront: () => {
+      set((state) => {
+        const activeLayer = state.layers.find(l => l.isActive);
+        if (!activeLayer || state.selectedObjectIds.length === 0) return state;
+
+        const selectedSet = new Set(state.selectedObjectIds);
+        const layerObjects = state.objects.filter(o => o.layerId === activeLayer.id);
+        const nonSelected = layerObjects.filter(o => !selectedSet.has(o.id));
+        const selected = layerObjects.filter(o => selectedSet.has(o.id));
+        const reorderedLayerObjects = [...nonSelected, ...selected];
+
+        let idx = 0;
+        const newObjects = state.objects.map(o => {
+          if (o.layerId === activeLayer.id) {
+            return reorderedLayerObjects[idx++];
+          }
+          return o;
+        });
+
+        return { objects: newObjects };
+      });
+      saveHistory();
+    },
+    sendToBack: () => {
+      set((state) => {
+        const activeLayer = state.layers.find(l => l.isActive);
+        if (!activeLayer || state.selectedObjectIds.length === 0) return state;
+
+        const selectedSet = new Set(state.selectedObjectIds);
+        const layerObjects = state.objects.filter(o => o.layerId === activeLayer.id);
+        const nonSelected = layerObjects.filter(o => !selectedSet.has(o.id));
+        const selected = layerObjects.filter(o => selectedSet.has(o.id));
+        const reorderedLayerObjects = [...selected, ...nonSelected];
+
+        let idx = 0;
+        const newObjects = state.objects.map(o => {
+          if (o.layerId === activeLayer.id) {
+            return reorderedLayerObjects[idx++];
+          }
+          return o;
+        });
+
+        return { objects: newObjects };
+      });
+      saveHistory();
+    },
+    bringForward: () => {
+      set((state) => {
+        const activeLayer = state.layers.find(l => l.isActive);
+        if (!activeLayer || state.selectedObjectIds.length === 0) return state;
+
+        const selectedSet = new Set(state.selectedObjectIds);
+        const layerObjects = [...state.objects.filter(o => o.layerId === activeLayer.id)];
+
+        for (let i = layerObjects.length - 2; i >= 0; i--) {
+          if (selectedSet.has(layerObjects[i].id) && !selectedSet.has(layerObjects[i + 1].id)) {
+            const temp = layerObjects[i];
+            layerObjects[i] = layerObjects[i + 1];
+            layerObjects[i + 1] = temp;
+          }
+        }
+
+        let idx = 0;
+        const newObjects = state.objects.map(o => {
+          if (o.layerId === activeLayer.id) {
+            return layerObjects[idx++];
+          }
+          return o;
+        });
+
+        return { objects: newObjects };
+      });
+      saveHistory();
+    },
+    sendBackward: () => {
+      set((state) => {
+        const activeLayer = state.layers.find(l => l.isActive);
+        if (!activeLayer || state.selectedObjectIds.length === 0) return state;
+
+        const selectedSet = new Set(state.selectedObjectIds);
+        const layerObjects = [...state.objects.filter(o => o.layerId === activeLayer.id)];
+
+        for (let i = 1; i < layerObjects.length; i++) {
+          if (selectedSet.has(layerObjects[i].id) && !selectedSet.has(layerObjects[i - 1].id)) {
+            const temp = layerObjects[i];
+            layerObjects[i] = layerObjects[i - 1];
+            layerObjects[i - 1] = temp;
+          }
+        }
+
+        let idx = 0;
+        const newObjects = state.objects.map(o => {
+          if (o.layerId === activeLayer.id) {
+            return layerObjects[idx++];
+          }
+          return o;
+        });
+
+        return { objects: newObjects };
+      });
+      saveHistory();
+    },
+    flipHorizontal: () => {
+      set((state) => {
+        if (state.selectedObjectIds.length === 0) return state;
+        const selected = state.objects.filter(o => state.selectedObjectIds.includes(o.id));
+        const bounds = computeCombinedBounds(selected);
+        if (!bounds) return state;
+
+        return {
+          objects: state.objects.map(obj => {
+            if (!state.selectedObjectIds.includes(obj.id)) return obj;
+            const newX = bounds.minX + (bounds.maxX - (obj.x + obj.width));
+            return {
+              ...obj,
+              x: Math.round(newX),
+              flipX: !obj.flipX,
+            };
+          })
+        };
+      });
+      saveHistory();
+    },
+    flipVertical: () => {
+      set((state) => {
+        if (state.selectedObjectIds.length === 0) return state;
+        const selected = state.objects.filter(o => state.selectedObjectIds.includes(o.id));
+        const bounds = computeCombinedBounds(selected);
+        if (!bounds) return state;
+
+        return {
+          objects: state.objects.map(obj => {
+            if (!state.selectedObjectIds.includes(obj.id)) return obj;
+            const newY = bounds.minY + (bounds.maxY - (obj.y + obj.height));
+            return {
+              ...obj,
+              y: Math.round(newY),
+              flipY: !obj.flipY,
+            };
+          })
+        };
+      });
+      saveHistory();
+    },
+    alignSelectedObjects: (alignment) => {
+      set((state) => {
+        if (state.selectedObjectIds.length === 0) return state;
+        const selected = state.objects.filter(o => state.selectedObjectIds.includes(o.id));
+        if (selected.length === 0) return state;
+
+        let targetBox: BoundingBox;
+        if (selected.length === 1) {
+          targetBox = {
+            minX: 0,
+            minY: 0,
+            maxX: state.canvasDimensions.width,
+            maxY: state.canvasDimensions.height,
+            width: state.canvasDimensions.width,
+            height: state.canvasDimensions.height,
+          };
+        } else {
+          const bounds = computeCombinedBounds(selected);
+          if (!bounds) return state;
+          targetBox = bounds;
+        }
+
+        return {
+          objects: state.objects.map(obj => {
+            if (!state.selectedObjectIds.includes(obj.id)) return obj;
+
+            let newX = obj.x;
+            let newY = obj.y;
+
+            switch (alignment) {
+              case 'left':
+                newX = targetBox.minX;
+                break;
+              case 'center-h':
+                newX = targetBox.minX + (targetBox.width - obj.width) / 2;
+                break;
+              case 'right':
+                newX = targetBox.maxX - obj.width;
+                break;
+              case 'top':
+                newY = targetBox.minY;
+                break;
+              case 'center-v':
+                newY = targetBox.minY + (targetBox.height - obj.height) / 2;
+                break;
+              case 'bottom':
+                newY = targetBox.maxY - obj.height;
+                break;
+            }
+
+            return {
+              ...obj,
+              x: Math.round(newX),
+              y: Math.round(newY),
+            };
+          })
         };
       });
       saveHistory();
