@@ -53,6 +53,33 @@ export function useKeyboardShortcuts() {
       } else if (isCtrlKey && key === 'e') {
         event.preventDefault();
         useEditorStore.getState().triggerMergeDown();
+      } else if (isCtrlKey && key === 'd') {
+        // Duplication rapide d'objets sélectionnés
+        event.preventDefault();
+        const state = useEditorStore.getState();
+        if (state.selectedObjectIds.length > 0) {
+          const toDuplicate = state.objects.filter(o => state.selectedObjectIds.includes(o.id));
+          const newObjects = toDuplicate.map(o => ({
+            ...o,
+            id: Math.random().toString(36).substring(2, 9),
+            x: o.x + 20,
+            y: o.y + 20,
+          }));
+          state.setObjects([...state.objects, ...newObjects]);
+          state.selectObjects(newObjects.map(o => o.id));
+        }
+      } else if (!isCtrlKey && !event.altKey) {
+        // Raccourcis d'outils directs
+        const state = useEditorStore.getState();
+        if (key === 'v') {
+          state.setActiveTool('select');
+        } else if (key === 'b') {
+          state.setActiveTool('brush');
+        } else if (key === 'e') {
+          state.setActiveTool('eraser');
+        } else if (key === 'u') {
+          state.setActiveTool('square');
+        }
       }
     };
 
@@ -61,7 +88,6 @@ export function useKeyboardShortcuts() {
         if (isSpacePressed) {
           event.preventDefault();
           const state = useEditorStore.getState();
-          // Only restore if current tool is still 'move' (in case they changed it manually)
           if (state.activeTool === 'move' && previousTool) {
             state.setActiveTool(previousTool as any);
           }
@@ -93,4 +119,3 @@ export function useKeyboardShortcuts() {
     };
   }, [undo, redo]);
 }
-

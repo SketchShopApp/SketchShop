@@ -1,5 +1,40 @@
 export type Tool = 'select' | 'move' | 'brush'  | 'eraser' | 'shapes' | 'square' | 'pixelate' | 'threshold' | 'ascii';
 
+export type CanvasObjectType = 'rect' | 'circle' | 'line' | 'triangle' | 'text' | 'image';
+
+export interface CanvasObject {
+  id: string;
+  layerId: string;
+  type: CanvasObjectType;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation?: number; // en degrés (0 - 360)
+  fill?: string;
+  stroke?: string;
+  strokeWeight?: number;
+  opacity?: number;
+  borderRadius?: number;
+  text?: string;
+  fontSize?: number;
+  imageUrl?: string;
+  flipX?: boolean;
+  flipY?: boolean;
+  points?: { x: number; y: number }[];
+}
+
+export interface BoundingBox {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  width: number;
+  height: number;
+}
+
+export type HandleType = 'tl' | 'tc' | 'tr' | 'mr' | 'br' | 'bc' | 'bl' | 'ml' | 'rot';
+
 export type BlendMode =
   | 'normal'
   | 'multiply'

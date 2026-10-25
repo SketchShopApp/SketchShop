@@ -142,7 +142,7 @@ Lors de vos interventions de développement (collaborateur ou IA), les règles s
    - Ne jamais développer directement sur la branche principale (`main`).
    - Créer une nouvelle branche dédiée pour chaque nouvelle fonctionnalité (ex: `feature/nom-de-la-fonctionnalite` ou `fix/nom-du-bug`).
 2. **Commits cadrés et propres** :
-   - Réaliser des commits atomiques avec des messages clairs et explicites.
+   - Réaliser des commits assez souvent avec des messages clairs et explicites.
    - Les commits doivent être créés **au nom de l'auteur du projet**.
 3. **Fin de mission & Notification** :
    - À la fin de chaque fonctionnalité ou tâche, **prévenir explicitement que le travail est terminé** et résumer les modifications apportées.

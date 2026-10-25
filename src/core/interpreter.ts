@@ -1,4 +1,4 @@
-import type { DrawingScene, DrawingCommand } from './types';
+import type { DrawingScene, DrawingCommand, CanvasObject } from './types';
 
 /**
  * Interprète et dessine une scène générée par l'IA sur une cible p5 (canvas ou graphics de calque).
@@ -59,6 +59,108 @@ export function renderDrawingScene(target: any, scene: DrawingScene) {
 
   // 4. Restauration de l'état graphique initial
   target.pop();
+}
+
+/**
+ * Convertit une scène générée par l'IA en une liste d'objets vectoriels manipulables.
+ */
+export function sceneToCanvasObjects(scene: DrawingScene, layerId: string): CanvasObject[] {
+  if (!scene || !scene.commands) return [];
+
+  return scene.commands.map((cmd) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    switch (cmd.type) {
+      case 'circle': {
+        const r = cmd.radius ?? 20;
+        return {
+          id,
+          layerId,
+          type: 'circle',
+          x: cmd.x - r,
+          y: cmd.y - r,
+          width: r * 2,
+          height: r * 2,
+          fill: cmd.fill ?? '#000000',
+          stroke: cmd.stroke,
+          strokeWeight: cmd.strokeWeight,
+        };
+      }
+      case 'rect': {
+        return {
+          id,
+          layerId,
+          type: 'rect',
+          x: cmd.x,
+          y: cmd.y,
+          width: cmd.width ?? 50,
+          height: cmd.height ?? 50,
+          borderRadius: cmd.borderRadius,
+          fill: cmd.fill ?? '#000000',
+          stroke: cmd.stroke,
+          strokeWeight: cmd.strokeWeight,
+        };
+      }
+      case 'line': {
+        const minX = Math.min(cmd.x1, cmd.x2);
+        const minY = Math.min(cmd.y1, cmd.y2);
+        const maxX = Math.max(cmd.x1, cmd.x2);
+        const maxY = Math.max(cmd.y1, cmd.y2);
+        return {
+          id,
+          layerId,
+          type: 'line',
+          x: minX,
+          y: minY,
+          width: Math.max(maxX - minX, 1),
+          height: Math.max(maxY - minY, 1),
+          points: [{ x: cmd.x1, y: cmd.y1 }, { x: cmd.x2, y: cmd.y2 }],
+          stroke: cmd.stroke ?? '#000000',
+          strokeWeight: cmd.strokeWeight ?? 2,
+        };
+      }
+      case 'triangle': {
+        const minX = Math.min(cmd.x1, cmd.x2, cmd.x3);
+        const minY = Math.min(cmd.y1, cmd.y2, cmd.y3);
+        const maxX = Math.max(cmd.x1, cmd.x2, cmd.x3);
+        const maxY = Math.max(cmd.y1, cmd.y2, cmd.y3);
+        return {
+          id,
+          layerId,
+          type: 'triangle',
+          x: minX,
+          y: minY,
+          width: Math.max(maxX - minX, 1),
+          height: Math.max(maxY - minY, 1),
+          points: [
+            { x: cmd.x1, y: cmd.y1 },
+            { x: cmd.x2, y: cmd.y2 },
+            { x: cmd.x3, y: cmd.y3 },
+          ],
+          fill: cmd.fill ?? '#000000',
+          stroke: cmd.stroke,
+          strokeWeight: cmd.strokeWeight,
+        };
+      }
+      case 'text': {
+        const size = cmd.size ?? 20;
+        const estimatedWidth = cmd.text.length * size * 0.6;
+        return {
+          id,
+          layerId,
+          type: 'text',
+          x: cmd.x,
+          y: cmd.y,
+          width: estimatedWidth,
+          height: size,
+          text: cmd.text,
+          fontSize: size,
+          fill: cmd.fill ?? '#000000',
+          stroke: cmd.stroke,
+          strokeWeight: cmd.strokeWeight,
+        };
+      }
+    }
+  });
 }
 
 /**

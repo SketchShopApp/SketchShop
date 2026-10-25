@@ -18,14 +18,14 @@ Bienvenue sur la feuille de route (**Roadmap**) de **SketchShop** ! Ce document 
 
 > *Objectif : Passer d'un dessin purement "pixel figé" à une vraie manipulation d'objets éditables.*
 
-- [ ] **Boîte de délimitation (Bounding Box) & Sélection :**
+- [x] **Boîte de délimitation (Bounding Box) & Sélection :**
   - Sélectionner un objet / forme au clic ou par zone rectangulaire (lasso / cadre de sélection).
   - Affichage d'un rectangle de sélection avec 8 poignées d'ancrage (coins et bords).
-- [ ] **Transformations interactives :**
+- [x] **Transformations interactives :**
   - **Déplacement (Move / Drag & Drop)** : Glisser-déposer un objet à n'importe quel endroit du canvas.
   - **Redimensionnement (Scale / Resize)** : Agrandir ou réduire proportionnellement (`Shift`) ou librement.
   - **Rotation** : Poignée de rotation pour pivoter les formes avec angle en degrés (magnétisme à 15°/45° avec `Shift`).
-- [ ] **Opérations sur les objets :**
+- [x] **Opérations sur les objets :**
   - Duplication rapide (`Ctrl + D` ou `Alt + Drag`).
   - Suppression (`Suppr` / `Backspace`).
   - Alignements automatiques (centrer horizontalement/verticalement, aligner à gauche/droite).
@@ -109,4 +109,3 @@ Bienvenue sur la feuille de route (**Roadmap**) de **SketchShop** ! Ce document 
 ---
 
 > 💡 *Cette roadmap est un document vivant. N'hésite pas à cocher les cases au fur et à mesure des Pull Requests ou à ajouter de nouvelles idées inspirées par vos utilisateurs !*
-
